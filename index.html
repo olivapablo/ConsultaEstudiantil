@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Gestor Académico · Panel Docente</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- Google Identity Services para OAuth 2.0 (Google Drive API v3) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+  <!-- PANTALLA DE ACCESO Y SEGURIDAD -->
+  <div id="login" class="login">
+    <div class="loginbox">
+      <div class="loginlogo">✦</div>
+      <h1 id="loginTitle">Gestor Académico</h1>
+      <p class="muted" id="loginText">Acceso al panel docente</p>
+      
+      <!-- Creación inicial de PIN -->
+      <div id="setupPin" class="hidden">
+        <label>CREAR PIN DOCENTE (4 A 8 DÍGITOS)</label>
+        <input id="newPin" type="password" inputmode="numeric" maxlength="8" placeholder="Ingresá un PIN seguro">
+        <button class="primary" style="width:100%;margin-top:14px" onclick="app.handleCreatePin()">Guardar PIN y comenzar</button>
+        <p class="footerhint">El PIN se protegerá con derivación criptográfica PBKDF2.</p>
+      </div>
+
+      <!-- Ingreso con PIN existente -->
+      <div id="enterPin">
+        <label>PIN DOCENTE</label>
+        <input id="pinInput" type="password" inputmode="numeric" maxlength="8" placeholder="Ingresá tu PIN">
+        <button class="primary" style="width:100%;margin-top:14px" onclick="app.handleLogin()">Ingresar</button>
+        <p class="footerhint error" id="loginError"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- APLICACIÓN PRINCIPAL -->
+  <div id="app" class="app hidden">
+    <!-- BARRA LATERAL (SIDEBAR) -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="logo">✦</div>
+        <div>
+          <b>Gestor Académico</b>
+          <small>Plataforma docente</small>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" onclick="GestorAcademico.app.toggleSidebar()" title="Ocultar menú">‹</button>
+      </div>
+
+      <div class="welcome">
+        <div class="welcome-kicker">PANEL DE CONTROL</div>
+        <h2>Bienvenido/a,<br><span id="teacherWelcome">Docente</span></h2>
+        <small>Educación Física</small>
+      </div>
+
+      <div class="navgroup">
+        <div class="navlabel">GENERAL</div>
+        <nav>
+          <button class="nav active" data-page="dashboard"><span class="ico">▦</span>Dashboard</button>
+        </nav>
+      </div>
+
+      <div class="navgroup">
+        <div class="navlabel">GESTIÓN ACADÉMICA</div>
+        <nav>
+          <button class="nav" data-page="students"><span class="ico">♙</span>Alumnos</button>
+          <button class="nav" data-page="jobs"><span class="ico">▤</span>Trabajos prácticos</button>
+          <button class="nav" data-page="evaluations"><span class="ico">✓</span>Evaluaciones</button>
+          <button class="nav" data-page="history"><span class="ico">◷</span>Historial</button>
+          <button class="nav" data-page="lookup"><span class="ico">⌕</span>Consulta individual</button>
+        </nav>
+      </div>
+
+      <div class="navgroup">
+        <div class="navlabel">HERRAMIENTAS</div>
+        <nav>
+          <button class="nav" data-page="backup"><span class="ico">⇩</span>Copias de seguridad</button>
+          <button class="nav" data-page="settings"><span class="ico">⚙</span>Configuración</button>
+        </nav>
+      </div>
+
+      <div class="sidebottom">
+        <div class="local-state">
+          <span class="state-dot"></span>
+          <span id="saveState">Base de datos IndexedDB activa</span>
+        </div>
+        <button class="lock-button" onclick="app.logout()"><span>↪</span> Bloquear panel</button>
+      </div>
+    </aside>
+
+    <!-- Botón flotante para reabrir sidebar cuando está oculto -->
+    <button class="sidebar-open-btn" id="sidebarOpenBtn" onclick="GestorAcademico.app.toggleSidebar()" title="Mostrar menú" style="display:none">›</button>
+
+    <!-- ÁREA DE CONTENIDO -->
+    <main>
+      <div class="workspacebar">
+        <div class="crumb">
+          <span class="homeglyph">⌂</span>
+          <span>Panel docente</span>
+          <i>/</i>
+          <strong id="currentSection">Dashboard</strong>
+        </div>
+        <div class="workspace-right">
+          <span class="online-dot"></span>
+          <span>Espacio local seguro</span>
+          <span class="avatar">EF</span>
+        </div>
+      </div>
+
+      <!-- SECCIÓN: DASHBOARD -->
+      <section id="page-dashboard" class="section active">
+        <div class="top">
+          <div>
+            <h1>Dashboard</h1>
+            <p>Controlá alumnos, trabajos y situación académica desde un solo lugar.</p>
+          </div>
+          <div class="actions">
+            <button class="secondary" onclick="app.navigate('lookup')">Consultar alumno</button>
+            <button class="primary" onclick="app.openJobModal()">+ Nuevo trabajo</button>
+          </div>
+        </div>
+
+        <div class="grid" id="stats"></div>
+
+        <div class="panel">
+          <h2>Actividad académica general</h2>
+          <p class="muted">Resumen cuantitativo del padrón de alumnos y trabajos asignados.</p>
+          <div id="overview"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Accesos directos</h2>
+          <div class="actions">
+            <button class="secondary" onclick="app.openStudentModal()">+ Agregar alumno</button>
+            <button class="secondary" onclick="app.navigate('evaluations')">Evaluar trabajos</button>
+            <button class="secondary" onclick="app.navigate('backup')">Crear copia de seguridad</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN: ALUMNOS -->
+      <section id="page-students" class="section">
+        <div class="top">
+          <div>
+            <h1>Alumnos</h1>
+            <p>Administrá el padrón general de estudiantes y ocultá a quienes no asisten.</p>
+          </div>
+          <div class="actions">
+            <button class="secondary" onclick="app.openBulkStudentModal()">📋 Carga rápida de lista</button>
+            <button class="primary" onclick="app.openStudentModal()">+ Agregar alumno</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="toolbar">
+            <input id="studentSearch" placeholder="Buscar por apellido, nombre o email..." oninput="app.renderStudents()">
+            <select id="studentFilter" onchange="app.renderStudents()">
+              <option value="active">Alumnos activos (visibles en clase)</option>
+              <option value="inactive">Inactivos (no asisten / no los conozco)</option>
+              <option value="all">Todos los alumnos</option>
+            </select>
+          </div>
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Alumno</th>
+                  <th>Correo</th>
+                  <th>Trabajos</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="studentsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN: TRABAJOS PRÁCTICOS -->
+      <section id="page-jobs" class="section">
+        <div class="top">
+          <div>
+            <h1>Trabajos prácticos</h1>
+            <p>Creá consignas teóricas y prácticas para asignar a tus alumnos.</p>
+          </div>
+          <button class="primary" onclick="app.openJobModal()">+ Nuevo trabajo</button>
+        </div>
+
+        <div class="panel">
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Trabajo</th>
+                  <th>Tipo</th>
+                  <th>Fecha límite</th>
+                  <th>Asignados</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="jobsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN: EVALUACIONES -->
+      <section id="page-evaluations" class="section">
+        <div class="top">
+          <div>
+            <h1>Evaluaciones</h1>
+            <p>Registrá notas, observaciones y la situación académica de cada alumno.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="toolbar">
+            <select id="evalJob" onchange="app.renderEvaluations()">
+              <option value="">Todos los trabajos</option>
+            </select>
+            <select id="evalStatus" onchange="app.renderEvaluations()">
+              <option value="">Todos los estados</option>
+              <option value="pending">Pendiente</option>
+              <option value="approved">Aprobado</option>
+              <option value="failed">Desaprobado</option>
+            </select>
+            <input id="evalSearch" placeholder="Buscar por apellido o nombre..." oninput="app.renderEvaluations()">
+          </div>
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Alumno</th>
+                  <th>Trabajo (Tipo)</th>
+                  <th>Calificación</th>
+                  <th>Estado</th>
+                  <th>Fecha límite</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="evalBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN: HISTORIAL -->
+      <section id="page-history" class="section">
+        <div class="top">
+          <div>
+            <h1>Historial de cambios</h1>
+            <p>Trazabilidad y auditoría de cada modificación realizada en las evaluaciones.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="toolbar">
+            <input id="historySearch" placeholder="Filtrar por alumno o título de trabajo..." oninput="app.renderHistory()">
+          </div>
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha y hora</th>
+                  <th>Alumno</th>
+                  <th>Trabajo</th>
+                  <th>Modificación</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN: CONSULTA INDIVIDUAL -->
+      <section id="page-lookup" class="section">
+        <div class="top">
+          <div>
+            <h1>Consulta del alumno</h1>
+            <p>Visualizá la ficha personal del estudiante en clase de forma privada.</p>
+          </div>
+          <button class="secondary" onclick="app.clearLookup()">Finalizar consulta</button>
+        </div>
+
+        <div class="panel">
+          <label>BUSCAR ALUMNO</label>
+          <input id="lookupSearch" placeholder="Escribí apellido o nombre..." oninput="app.searchLookup()">
+          <div id="lookupResults"></div>
+          <div id="studentView"></div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN: COPIAS DE SEGURIDAD -->
+      <section id="page-backup" class="section">
+        <div class="top">
+          <div>
+            <h1>Copias de seguridad</h1>
+            <p>Exportá, protegé o restaurá toda tu información académica.</p>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <div class="staticon">⇧</div>
+            <h2>Exportar copia completa</h2>
+            <p class="muted">Descargá un archivo JSON seguro con alumnos, trabajos, evaluaciones y auditoría.</p>
+            <button class="primary" onclick="app.handleExportBackup()">Exportar ahora</button>
+          </div>
+
+          <div class="card">
+            <div class="staticon">⇩</div>
+            <h2>Restaurar copia</h2>
+            <p class="muted">Importá un respaldo previo generado por esta plataforma (v1 o v2).</p>
+            <input type="file" id="importFile" accept=".json,application/json">
+            <button class="secondary" style="margin-top:10px" onclick="app.handleImportBackup()">Restaurar respaldo</button>
+          </div>
+        </div>
+
+        <div id="backupOverdueNotice" class="notice warn hidden">
+          ⚠️ <b>Atención:</b> Han pasado más de 7 días desde tu última copia de seguridad. Se recomienda exportar un respaldo para preservar tus datos fuera de este dispositivo.
+        </div>
+
+        <div class="notice">
+          ℹ️ Los datos están guardados de forma segura en <b>IndexedDB</b> en este navegador. Generá copias periódicas para conservarlas fuera del equipo físico.
+        </div>
+
+        <div class="panel">
+          <h2>Estado del almacenamiento</h2>
+          <p id="backupInfo" class="muted"></p>
+          <div style="margin-top:14px;max-width:320px">
+            <label>FRECUENCIA DE RECORDATORIO DE RESPALDO</label>
+            <select id="backupFreq" onchange="app.handleSaveBackupFrequency()">
+              <option value="7">Cada 7 días (Recomendado)</option>
+              <option value="15">Cada 15 días</option>
+              <option value="30">Cada 30 días</option>
+              <option value="0">Desactivado</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN: CONFIGURACIÓN -->
+      <section id="page-settings" class="section">
+        <div class="top">
+          <div>
+            <h1>Configuración</h1>
+            <p>Preferencias personales, perfil del docente, seguridad y conexión con Google Drive.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Perfil docente</h2>
+          <div class="formgrid">
+            <div class="field">
+              <label>NOMBRE DEL DOCENTE</label>
+              <input id="teacherName" placeholder="Ej. Prof. García">
+            </div>
+            <div class="field">
+              <label>EMAIL DEL DOCENTE</label>
+              <input id="teacherEmail" type="email" placeholder="docente@colegio.edu.ar">
+            </div>
+          </div>
+          <button class="primary" style="margin-top:14px" onclick="app.handleSaveSettings()">Guardar perfil</button>
+        </div>
+
+        <div class="panel">
+          <h2>Seguridad y Acceso</h2>
+          <p class="muted">El PIN protege el acceso docente visual mediante derivación de claves <b>PBKDF2</b> (100.000 iteraciones con sal criptográfica aleatoria), bloqueo progresivo ante intentos fallidos y auto-bloqueo por inactividad (10 minutos).</p>
+          <div class="notice" style="margin:12px 0;font-size:12px">
+            🛡️ <b>Consideraciones de seguridad en entorno local:</b><br>
+            El PIN impide el acceso no autorizado de alumnos durante las clases. Sin embargo, al tratarse de una aplicación web local, los datos residen en el navegador (IndexedDB) de tu computadora o tablet. Se recomienda mantener una contraseña en el sistema operativo y cifrado de disco del dispositivo para máxima seguridad física.
+          </div>
+          <button class="secondary" onclick="app.openChangePinModal()">Cambiar PIN docente</button>
+        </div>
+
+        <div class="panel">
+          <h2>Google Drive & Consignas de Recuperación (100% Gratuito)</h2>
+          <p class="muted">
+            Podés usar tu cuenta gratuita de Google Drive para compartir consignas en PDF con los alumnos desaprobados, sin pagar nada ni configurar servidores.
+          </p>
+          
+          <div class="notice" style="margin:14px 0;line-height:1.6">
+            <b style="color:#c5c1ff">💡 ¿Cómo funciona en 3 simples pasos?</b>
+            <ol style="margin:6px 0 0;padding-left:20px">
+              <li>Subí tu PDF de recuperación a tu Google Drive habitual (en tu cuenta de Gmail gratuita).</li>
+              <li>Hacé clic derecho en el archivo en Drive &gt; <b>Compartir</b> &gt; seleccioná <b>"Cualquiera con el enlace"</b> y copiá el enlace.</li>
+              <li>Pegá ese enlace en la evaluación desaprobada del alumno: la aplicación generará su <b>código QR</b> para el aula y preparará el <b>correo electrónico</b> con un clic.</li>
+            </ol>
+          </div>
+
+          <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <a href="https://drive.google.com/" target="_blank" class="primary button" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:11px;color:#11121a;font-weight:600">
+              Abrir mi Google Drive ↗
+            </a>
+            <button class="secondary" type="button" onclick="document.getElementById('driveAdvancedOAuth').classList.toggle('hidden')">
+              Opciones avanzadas (Google Cloud API)
+            </button>
+          </div>
+
+          <!-- OPCIONES AVANZADAS DE API (OPCIONALES) -->
+          <div id="driveAdvancedOAuth" class="hidden" style="margin-top:18px;border-top:1px solid #292a38;padding-top:16px">
+            <h4 style="margin:0 0 8px;color:#c5c1ff">⚙️ Conexión directa mediante Google Cloud API (Opcional):</h4>
+            <p class="muted" style="font-size:12px;margin-bottom:12px">
+              Si querés que la app suba los archivos directamente desde el panel sin entrar a drive.google.com, podés ingresar un ID de cliente gratuito de Google Cloud. No es obligatorio.
+            </p>
+            <div class="formgrid">
+              <div class="field full">
+                <label>ID DE CLIENTE OAUTH 2.0 (OPCIONAL)</label>
+                <input id="googleClientId" placeholder="Ej. 1234567890-abcdef.apps.googleusercontent.com">
+              </div>
+            </div>
+            <button class="secondary rowbtn" style="margin-top:8px" onclick="app.handleSaveDriveSettings()">Guardar ID de Cliente</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL DINÁMICO GENÉRICO -->
+  <div class="modalback" id="modal">
+    <div class="modal">
+      <div class="modalhead">
+        <h2 id="modalTitle">Formulario</h2>
+        <button class="secondary" onclick="app.closeModal()">✕</button>
+      </div>
+      <div id="modalBody"></div>
+      <div class="modalfoot">
+        <button class="secondary" onclick="app.closeModal()">Cancelar</button>
+        <button class="primary" id="modalSave">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARGA DEL MOTOR Y CONTROLADOR -->
+  <script src="js/app.bundle.js"></script>
+  <script>
+    // Puente de compatibilidad global
+    window.app = window.GestorAcademico ? window.GestorAcademico.app : null;
+  </script>
+</body>
+</html>
