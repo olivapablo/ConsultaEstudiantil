@@ -7,6 +7,225 @@
   'use strict';
 
   // ==========================================
+  // 0a. CUSTOM DARK GLASS DATE PICKER
+  // ==========================================
+  const DarkDatePicker = {
+    _active: null,
+    _months: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
+    _days:   ['DO','LU','MA','MI','JU','VI','SA'],
+
+    /** Inicializar todos los input[type=date] en el contexto dado */
+    init(context = document) {
+      context.querySelectorAll('input[type="date"]:not([data-dp-init])').forEach(inp => {
+        inp.setAttribute('data-dp-init', '1');
+        this._wrap(inp);
+      });
+    },
+
+    /** Envolver un input nativo con el widget custom */
+    _wrap(inp) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'date-picker-wrapper';
+
+      const display = document.createElement('div');
+      display.className = 'date-picker-display';
+      display.innerHTML = `<span class="dp-icon">📅</span><span class="dp-text">${this._fmt(inp.value) || inp.placeholder || 'dd/mm/aaaa'}</span>`;
+
+      if (inp.value) display.classList.add('dp-has-value');
+
+      // Insertar el wrapper antes del input en el DOM
+      inp.parentNode.insertBefore(wrapper, inp);
+      wrapper.appendChild(display);
+      wrapper.appendChild(inp);
+
+      // Ocultar el input nativo visualmente
+      inp.style.cssText = 'position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;';
+
+      display.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._open(inp, display);
+      });
+
+      // Escuchar cambios del input (ej. si se modifica programáticamente)
+      inp.addEventListener('change', () => {
+        this._updateDisplay(display, inp.value);
+      });
+    },
+
+    _fmt(val) {
+      if (!val) return '';
+      const [y, m, d] = val.split('-');
+      if (!y || !m || !d) return '';
+      return `${d}/${m}/${y}`;
+    },
+
+    _updateDisplay(display, val) {
+      const textEl = display.querySelector('.dp-text');
+      if (textEl) textEl.textContent = this._fmt(val) || 'dd/mm/aaaa';
+      display.classList.toggle('dp-has-value', !!val);
+    },
+
+    _open(inp, display) {
+      // Cerrar cualquier calendario abierto
+      this._closeActive();
+
+      const now = inp.value ? new Date(inp.value + 'T12:00:00') : new Date();
+      let year = now.getFullYear();
+      let month = now.getMonth();
+      const selectedVal = inp.value;
+
+      const cal = document.createElement('div');
+      cal.className = 'dp-calendar';
+      cal.setAttribute('data-dp-cal', '1');
+      document.body.appendChild(cal);
+
+      this._active = { cal, inp, display };
+
+      const render = () => {
+        cal.innerHTML = this._buildHTML(year, month, selectedVal);
+        this._positionCal(cal, display);
+        this._bindCalEvents(cal, inp, display, year, month, selectedVal, render, (y, m) => { year = y; month = m; }, (v) => {
+          this._active && (this._active.selectedVal = v);
+        });
+      };
+
+      render();
+
+      // Cerrar al hacer clic fuera
+      setTimeout(() => {
+        const closeOutside = (e) => {
+          if (!cal.contains(e.target) && e.target !== display) {
+            this._closeActive();
+            document.removeEventListener('mousedown', closeOutside, true);
+            document.removeEventListener('touchstart', closeOutside, true);
+          }
+        };
+        document.addEventListener('mousedown', closeOutside, true);
+        document.addEventListener('touchstart', closeOutside, true);
+      }, 10);
+
+      display.classList.add('dp-focused');
+    },
+
+    _closeActive() {
+      if (this._active) {
+        this._active.cal.remove();
+        this._active.display.classList.remove('dp-focused');
+        this._active = null;
+      }
+    },
+
+    _positionCal(cal, display) {
+      const rect = display.getBoundingClientRect();
+      const calH = cal.offsetHeight || 300;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      let top = spaceBelow > calH + 8 ? rect.bottom + 6 : rect.top - calH - 6;
+      let left = rect.left;
+      const calW = cal.offsetWidth || 280;
+      if (left + calW > window.innerWidth - 10) left = window.innerWidth - calW - 10;
+      if (left < 8) left = 8;
+      cal.style.top  = top + 'px';
+      cal.style.left = left + 'px';
+    },
+
+    _buildHTML(year, month, selectedVal) {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const daysInPrev = new Date(year, month, 0).getDate();
+
+      let cells = '';
+
+      // Días del mes anterior
+      for (let i = firstDay - 1; i >= 0; i--) {
+        const d = daysInPrev - i;
+        cells += `<div class="dp-day dp-other-month" data-dp-action="prev-day" data-d="${d}">${d}</div>`;
+      }
+
+      // Días del mes actual
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const isToday    = dateStr === todayStr;
+        const isSelected = dateStr === selectedVal;
+        let cls = 'dp-day';
+        if (isToday) cls += ' dp-today';
+        if (isSelected) cls += ' dp-selected';
+        cells += `<div class="${cls}" data-dp-action="select" data-date="${dateStr}">${d}</div>`;
+      }
+
+      // Completar con días del mes siguiente
+      const remaining = 42 - (firstDay + daysInMonth);
+      for (let d = 1; d <= remaining; d++) {
+        cells += `<div class="dp-day dp-other-month" data-dp-action="next-day" data-d="${d}">${d}</div>`;
+      }
+
+      const weekdays = this._days.map(w => `<div class="dp-weekday">${w}</div>`).join('');
+
+      return `
+        <div class="dp-header">
+          <button class="dp-nav-btn" data-dp-action="prev">‹</button>
+          <div class="dp-month-year">${this._months[month]} ${year}</div>
+          <button class="dp-nav-btn" data-dp-action="next">›</button>
+        </div>
+        <div class="dp-grid">
+          ${weekdays}
+          ${cells}
+        </div>
+        <div class="dp-actions">
+          <button class="dp-action-btn dp-clear" data-dp-action="clear">Borrar</button>
+          <button class="dp-action-btn dp-today-btn" data-dp-action="goto-today">Hoy</button>
+        </div>
+      `;
+    },
+
+    _bindCalEvents(cal, inp, display, year, month, selectedVal, render, setYM, setSelected) {
+      cal.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-dp-action]');
+        if (!btn) return;
+        const action = btn.dataset.dpAction;
+
+        if (action === 'prev') {
+          month--; if (month < 0) { month = 11; year--; }
+          setYM(year, month); render();
+        } else if (action === 'next') {
+          month++; if (month > 11) { month = 0; year++; }
+          setYM(year, month); render();
+        } else if (action === 'select') {
+          const date = btn.dataset.date;
+          inp.value = date;
+          inp.dispatchEvent(new Event('change', { bubbles: true }));
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+          this._updateDisplay(display, date);
+          setSelected(date);
+          this._closeActive();
+        } else if (action === 'clear') {
+          inp.value = '';
+          inp.dispatchEvent(new Event('change', { bubbles: true }));
+          this._updateDisplay(display, '');
+          this._closeActive();
+        } else if (action === 'goto-today') {
+          const t = new Date();
+          year = t.getFullYear(); month = t.getMonth();
+          setYM(year, month); selectedVal = ''; render();
+        } else if (action === 'prev-day') {
+          month--; if (month < 0) { month = 11; year--; }
+          setYM(year, month); render();
+        } else if (action === 'next-day') {
+          month++; if (month > 11) { month = 0; year++; }
+          setYM(year, month); render();
+        }
+      });
+    }
+  };
+
+  // Reiinit helper: llamar tras inyectar HTML dinámico
+  function initDatePickers(context = document) {
+    DarkDatePicker.init(context);
+  }
+
+  // ==========================================
   // 0. DIALOGS & UTILS (Luminous Dark Glass Dialogs)
   // ==========================================
   function sortJobs(jobsList) {
@@ -1159,81 +1378,104 @@
   }
 
   // ==========================================
-  // 10. EMAIL SERVICE (Mailto preparador)
+  // 10. EMAIL SERVICE (Gmail Compose URL)
   // ==========================================
   class EmailService {
-    static prepareMailtoLink({ studentEmail, studentName, jobTitle, jobType = 'Práctico', promptText = '', driveUrl = '', teacherName }) {
+    /**
+     * Construye la URL de Gmail Compose forzando la cuenta del docente.
+     * Formato: https://mail.google.com/mail/u/{teacherEmail}/?view=cm&fs=1&tf=1&to=...
+     * Esto hace que Gmail abra directamente con la cuenta correcta aunque haya multicuentas.
+     */
+    static _buildGmailUrl(to, subject, body, teacherEmail = '') {
+      // Si hay email docente, usarlo para forzar la cuenta. Si no, usar la genérica.
+      const accountPath = teacherEmail.trim()
+        ? `u/${encodeURIComponent(teacherEmail.trim())}/`
+        : '';
+      const base = `https://mail.google.com/mail/${accountPath}?view=cm&fs=1&tf=1`;
+      return `${base}&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
+
+    static prepareMailtoLink({ studentEmail, studentName, jobTitle, jobType = 'Práctico', promptText = '', driveUrl = '', teacherName, teacherEmail = '' }) {
       if (!studentEmail || !studentEmail.trim()) {
         return { ready: false, error: 'El alumno no tiene correo registrado.' };
       }
       const isTheoretical = jobType === 'Teórico';
-      const subject = `Consigna de recuperación: ${jobTitle} - Educación Física`;
+      const subject = `Consigna de recuperación: ${jobTitle} — Educación Física`;
 
       let body = '';
       if (isTheoretical) {
-        // PARTE TEÓRICA: Se mantiene como trabajamos (archivo en Google Drive con link y QR)
         body = `Hola ${studentName},
 
-Te adjunto la consigna de recuperación correspondiente al trabajo práctico "${jobTitle}".
+Te envío la consigna de recuperación correspondiente al trabajo teórico "${jobTitle}".
 
-Podés consultar el documento en Google Drive desde el siguiente enlace: ${driveUrl}
+Podés consultar el documento completo en Google Drive desde el siguiente enlace:
+${driveUrl || '(el docente te enviará el enlace)'}
 
-Ante cualquier duda podés consultarme durante las clases, recuerda las fechas de entrega.
+Ante cualquier duda podés consultarme durante las clases. Recordá la fecha de entrega.
 
-Saludos, Prof. Pablo Oliva González.`;
+Saludos,
+${teacherName || 'Prof. Pablo Oliva González'}
+Educación Física`;
       } else {
-        // PARTE PRÁCTICA: Consigna cargada directamente en la página (rutinas / ejercicios)
-        const consigna = promptText ? promptText.trim() : (driveUrl ? `Enlace de consulta: ${driveUrl}` : 'Consultar ejercicios de recuperación con el docente en clase.');
+        const consigna = promptText
+          ? promptText.trim()
+          : (driveUrl ? `Enlace de referencia: ${driveUrl}` : 'Consultá los ejercicios de recuperación con el docente en clase.');
+
         body = `Hola ${studentName},
 
-Te adjunto la consigna de recuperación correspondiente al trabajo práctico "${jobTitle}".
+Te envío la consigna de recuperación correspondiente al trabajo práctico "${jobTitle}".
 
-Consigna práctica:
+─── CONSIGNA PRÁCTICA ───────────────────────────
 ${consigna}
+─────────────────────────────────────────────────
+${driveUrl ? `\nMaterial de referencia: ${driveUrl}` : ''}
 
-Ante cualquier duda podés consultarme durante las clases, recuerda las fechas de entrega.
+Ante cualquier duda podés consultarme durante las clases. Recordá la fecha de entrega.
 
-Saludos, Prof. Pablo Oliva González.`;
+Saludos,
+${teacherName || 'Prof. Pablo Oliva González'}
+Educación Física`;
       }
 
-      return {
-        ready: true,
-        url: `mailto:${encodeURIComponent(studentEmail.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-      };
+      const gmailUrl = this._buildGmailUrl(studentEmail.trim(), subject, body, teacherEmail);
+      return { ready: true, url: gmailUrl, subject, body, to: studentEmail.trim() };
     }
 
-    static prepareConsolidatedTheoreticalMail({ studentEmail, studentName, theoreticalJobs, teacherName }) {
+    static prepareConsolidatedTheoreticalMail({ studentEmail, studentName, theoreticalJobs, teacherName, teacherEmail = '' }) {
       if (!studentEmail || !studentEmail.trim()) {
         return { ready: false, error: 'El alumno no tiene correo registrado.' };
       }
 
-      const subject = `Consignas de recuperación teórica pendientes - Educación Física`;
-      
-      const listado = theoreticalJobs.map(j => {
-        const link = j.driveUrl ? `Enlace Drive: ${j.driveUrl}` : '(Consultar documento con el docente)';
-        return `• ${j.title}:\n${link}`;
+      const subject = `Consignas de recuperación teórica pendientes — Educación Física`;
+
+      const listado = theoreticalJobs.map((j, i) => {
+        const link = j.driveUrl ? j.driveUrl : '(Consultar enlace con el docente)';
+        return `${i + 1}. ${j.title}\n   Enlace Drive: ${link}`;
       }).join('\n\n');
 
       const body = `Hola ${studentName},
 
-Te adjunto las consignas de recuperación correspondientes a los trabajos prácticos teóricos que adeudás en Educación Física:
+Te envío las consignas de recuperación de los trabajos teóricos que adeudás en Educación Física:
 
+─── TRABAJOS PENDIENTES ─────────────────────────
 ${listado}
+─────────────────────────────────────────────────
 
-Podés consultar cada documento en Google Drive desde los enlaces indicados.
+Podés consultar cada documento desde los enlaces indicados en Google Drive.
 
-Ante cualquier duda podés consultarme durante las clases, recuerda las fechas de entrega.
+Ante cualquier duda podés consultarme durante las clases. Recordá las fechas de entrega.
 
-Saludos, Prof. Pablo Oliva González.`;
+Saludos,
+${teacherName || 'Prof. Pablo Oliva González'}
+Educación Física`;
 
-      return {
-        ready: true,
-        url: `mailto:${encodeURIComponent(studentEmail.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-      };
+      const gmailUrl = this._buildGmailUrl(studentEmail.trim(), subject, body, teacherEmail);
+      return { ready: true, url: gmailUrl, subject, body, to: studentEmail.trim() };
     }
 
+    /** Abre Gmail Compose en una nueva pestaña */
     static openClient(url) {
-      if (url) window.location.href = url;
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
     }
   }
 
@@ -2228,6 +2470,8 @@ Saludos, Prof. Pablo Oliva González.`;
         await this.students.update(student.id, { email: student.email });
       }
 
+      const teacherEmail = profile?.teacherEmail || 'prof.pabloliva@gmail.com';
+
       const res = EmailService.prepareMailtoLink({
         studentEmail: student.email,
         studentName: `${student.name}`,
@@ -2235,7 +2479,8 @@ Saludos, Prof. Pablo Oliva González.`;
         jobType: job.type,
         promptText: promptText,
         driveUrl: driveUrl,
-        teacherName: profile?.teacherName || 'Prof. Pablo Oliva González'
+        teacherName: profile?.teacherName || 'Prof. Pablo Oliva González',
+        teacherEmail: teacherEmail
       });
 
       if (!res.ready) return await AppDialog.alert(res.error, 'Aviso de correo');
@@ -2277,11 +2522,14 @@ Saludos, Prof. Pablo Oliva González.`;
         driveUrl: a.driveViewLink || a.job.driveUrl || ''
       }));
 
+      const teacherEmail = profile?.teacherEmail || 'prof.pabloliva@gmail.com';
+
       const res = EmailService.prepareConsolidatedTheoreticalMail({
         studentEmail: student.email,
         studentName: `${student.name}`,
         theoreticalJobs: theoreticalJobsData,
-        teacherName: profile?.teacherName || 'Prof. Pablo Oliva González'
+        teacherName: profile?.teacherName || 'Prof. Pablo Oliva González',
+        teacherEmail: teacherEmail
       });
 
       if (!res.ready) return await AppDialog.alert(res.error, 'Aviso de correo');
@@ -2705,6 +2953,8 @@ Saludos, Prof. Pablo Oliva González.`;
         saveBtn.onclick = onSaveFn;
       }
       document.getElementById('modal')?.classList.add('show');
+      // Inicializar calendarios custom dentro del modal
+      if (bodyEl) requestAnimationFrame(() => initDatePickers(bodyEl));
     }
 
     closeModal() {
@@ -2851,6 +3101,16 @@ Saludos, Prof. Pablo Oliva González.`;
             };
             await this.db.put('assignments', assignment);
           }
+        }
+
+        // Sembrar perfil docente por defecto si no existe
+        const prof = await this.db.get('settings', 'teacherProfile');
+        if (!prof) {
+          await this.db.put('settings', {
+            key: 'teacherProfile',
+            teacherName: 'Prof. Pablo Oliva González',
+            teacherEmail: 'prof.pabloliva@gmail.com'
+          });
         }
 
         console.log('[Gestor] Datos iniciales cargados correctamente.');
