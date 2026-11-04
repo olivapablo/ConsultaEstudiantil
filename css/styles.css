@@ -67,6 +67,7 @@
 
 /* 2. DESIGN TOKENS */
 :root {
+  color-scheme: dark;
   /* Canvas & Neutrals */
   --bg-base: #07070a;
   --bg-raised: #0d0d12;
@@ -205,15 +206,58 @@ button:active {
 /* Form Controls */
 input, select, textarea {
   width: 100%;
-  background: #101118;
+  color-scheme: dark;
+  background: #12131d;
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 11px 13px;
   outline: none;
   font-size: 14px;
+  font-family: inherit;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
   transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+select {
+  cursor: pointer;
+  background-color: #151624;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a89cff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 38px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+select option {
+  background: #171826;
+  color: #f5f5f7;
+  padding: 10px 14px;
+  font-family: inherit;
+}
+
+select option:checked, select option:hover {
+  background: #2a1f8f;
+  color: #ffffff;
+}
+
+input[type="date"] {
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.8) sepia(100%) saturate(300%) hue-rotate(210deg);
+  opacity: 0.85;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 input:focus, select:focus, textarea:focus {
@@ -1188,4 +1232,116 @@ tr[onclick]:hover b {
   height: 260px;
   border-radius: 8px;
   image-rendering: pixelated;
+}
+
+/* ==========================================================================
+   CUSTOM APP DIALOGS (Replaces browser alert, confirm, prompt)
+   ========================================================================== */
+.app-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 5, 10, 0.85);
+  padding: 16px;
+  animation: dialogFadeIn 0.15s ease-out;
+}
+
+@keyframes dialogFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.app-dialog-box {
+  width: min(440px, 100%);
+  background: #161724;
+  border: 1px solid rgba(109, 91, 255, 0.38);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 25px 70px rgba(0, 0, 0, 0.85),
+    0 0 35px rgba(109, 91, 255, 0.16);
+  animation: dialogRise 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-family: inherit;
+}
+
+@keyframes dialogRise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.app-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-dialog-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.app-dialog-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.app-dialog-body {
+  color: #dedaf8;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.app-dialog-body p {
+  margin: 0;
+}
+
+.app-dialog-input {
+  width: 100%;
+  background: #0f1018 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(109, 91, 255, 0.45) !important;
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  margin-top: 10px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  outline: none;
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+
+.app-dialog-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-glow), inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+.app-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.app-dialog-btn {
+  padding: 9px 18px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  border-radius: var(--radius-sm) !important;
 }

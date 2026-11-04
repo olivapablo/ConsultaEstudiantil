@@ -7,6 +7,184 @@
   'use strict';
 
   // ==========================================
+  // 0. DIALOGS & UTILS (Luminous Dark Glass Dialogs)
+  // ==========================================
+  function sortJobs(jobsList) {
+    if (!Array.isArray(jobsList)) return [];
+    return [...jobsList].sort((a, b) => {
+      const matchA = (a.title || '').match(/TP\s*(\d+)/i);
+      const matchB = (b.title || '').match(/TP\s*(\d+)/i);
+      const numA = matchA ? parseInt(matchA[1], 10) : 999;
+      const numB = matchB ? parseInt(matchB[1], 10) : 999;
+      if (numA !== numB) return numA - numB;
+      return (a.title || '').localeCompare(b.title || '', undefined, { numeric: true });
+    });
+  }
+
+  const AppDialog = {
+    esc(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    },
+
+    _createOverlay(contentHtml) {
+      const prev = document.getElementById('appDialogOverlay');
+      if (prev) prev.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'appDialogOverlay';
+      overlay.className = 'app-dialog-backdrop';
+      overlay.innerHTML = `
+        <div class="app-dialog-box" role="dialog" aria-modal="true">
+          ${contentHtml}
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      return overlay;
+    },
+
+    alert(message, title = 'Notificación') {
+      return new Promise((resolve) => {
+        const isSuccess = /éxito|correctamente|exitosamente|guardad/i.test(message);
+        const isError = /error|incorrecto|obligatorio|atención|falló|vencido/i.test(message);
+        const icon = isSuccess ? '✅' : (isError ? '⚠️' : 'ℹ️');
+
+        const overlay = this._createOverlay(`
+          <div class="app-dialog-header">
+            <span class="app-dialog-icon">${icon}</span>
+            <h3 class="app-dialog-title">${this.esc(title)}</h3>
+          </div>
+          <div class="app-dialog-body">
+            <p>${this.esc(message).replace(/\n/g, '<br>')}</p>
+          </div>
+          <div class="app-dialog-actions">
+            <button type="button" class="primary app-dialog-btn" id="appDialogOk">Aceptar</button>
+          </div>
+        `);
+
+        const okBtn = overlay.querySelector('#appDialogOk');
+        const finish = () => {
+          overlay.remove();
+          resolve();
+        };
+
+        okBtn.addEventListener('click', finish);
+        setTimeout(() => okBtn.focus(), 25);
+
+        const onKey = (e) => {
+          if (e.key === 'Enter' || e.key === 'Escape') {
+            document.removeEventListener('keydown', onKey);
+            finish();
+          }
+        };
+        document.addEventListener('keydown', onKey);
+      });
+    },
+
+    confirm(message, title = 'Confirmar acción') {
+      return new Promise((resolve) => {
+        const overlay = this._createOverlay(`
+          <div class="app-dialog-header">
+            <span class="app-dialog-icon">❓</span>
+            <h3 class="app-dialog-title">${this.esc(title)}</h3>
+          </div>
+          <div class="app-dialog-body">
+            <p>${this.esc(message).replace(/\n/g, '<br>')}</p>
+          </div>
+          <div class="app-dialog-actions">
+            <button type="button" class="secondary app-dialog-btn" id="appDialogCancel">Cancelar</button>
+            <button type="button" class="primary app-dialog-btn" id="appDialogConfirm">Aceptar</button>
+          </div>
+        `);
+
+        const confirmBtn = overlay.querySelector('#appDialogConfirm');
+        const cancelBtn = overlay.querySelector('#appDialogCancel');
+
+        const finish = (val) => {
+          overlay.remove();
+          resolve(val);
+        };
+
+        confirmBtn.addEventListener('click', () => finish(true));
+        cancelBtn.addEventListener('click', () => finish(false));
+        setTimeout(() => confirmBtn.focus(), 25);
+
+        const onKey = (e) => {
+          if (e.key === 'Escape') {
+            document.removeEventListener('keydown', onKey);
+            finish(false);
+          } else if (e.key === 'Enter') {
+            document.removeEventListener('keydown', onKey);
+            finish(true);
+          }
+        };
+        document.addEventListener('keydown', onKey);
+      });
+    },
+
+    prompt(message, defaultValue = '', title = 'Ingresar datos') {
+      return new Promise((resolve) => {
+        const overlay = this._createOverlay(`
+          <div class="app-dialog-header">
+            <span class="app-dialog-icon">✉️</span>
+            <h3 class="app-dialog-title">${this.esc(title)}</h3>
+          </div>
+          <div class="app-dialog-body">
+            <p style="margin-bottom:10px">${this.esc(message).replace(/\n/g, '<br>')}</p>
+            <input type="text" id="appDialogInput" value="${this.esc(defaultValue)}" class="app-dialog-input" placeholder="Escribí aquí...">
+          </div>
+          <div class="app-dialog-actions">
+            <button type="button" class="secondary app-dialog-btn" id="appDialogCancel">Cancelar</button>
+            <button type="button" class="primary app-dialog-btn" id="appDialogSubmit">Aceptar</button>
+          </div>
+        `);
+
+        const input = overlay.querySelector('#appDialogInput');
+        const submitBtn = overlay.querySelector('#appDialogSubmit');
+        const cancelBtn = overlay.querySelector('#appDialogCancel');
+
+        setTimeout(() => {
+          input.focus();
+          input.select();
+        }, 30);
+
+        const finish = (val) => {
+          overlay.remove();
+          resolve(val);
+        };
+
+        submitBtn.addEventListener('click', () => finish(input.value));
+        cancelBtn.addEventListener('click', () => finish(null));
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.stopPropagation();
+            finish(input.value);
+          }
+        });
+
+        const onKey = (e) => {
+          if (e.key === 'Escape') {
+            document.removeEventListener('keydown', onKey);
+            finish(null);
+          }
+        };
+        document.addEventListener('keydown', onKey);
+      });
+    }
+  };
+
+  // Reemplazar globalmente las funciones nativas del navegador
+  window.alert = (msg) => AppDialog.alert(msg);
+  window.confirm = (msg) => { console.warn('Usar await AppDialog.confirm'); return AppDialog.confirm(msg); };
+  window.prompt = (msg, def) => { console.warn('Usar await AppDialog.prompt'); return AppDialog.prompt(msg, def); };
+
+  // ==========================================
   // 1. DATABASE SERVICE (IndexedDB + Migrador)
   // ==========================================
   const DB_NAME = 'GestorAcademicoDB';
@@ -512,14 +690,7 @@
 
     async getAll() {
       const jobs = await this.db.getAll('jobs');
-      return jobs.sort((a, b) => {
-        const matchA = (a.title || '').match(/TP\s*(\d+)/i);
-        const matchB = (b.title || '').match(/TP\s*(\d+)/i);
-        const numA = matchA ? parseInt(matchA[1], 10) : 999;
-        const numB = matchB ? parseInt(matchB[1], 10) : 999;
-        if (numA !== numB) return numA - numB;
-        return (a.title || '').localeCompare(b.title || '', undefined, { numeric: true });
-      });
+      return sortJobs(jobs);
     }
 
     async getById(id) { return await this.db.get('jobs', id); }
@@ -679,7 +850,8 @@
         this.getByStudentId(studentId)
       ]);
       const assignedSet = new Set(assignments.map(a => a.jobId));
-      return jobs.filter(j => j.active && !assignedSet.has(j.id));
+      const unassigned = jobs.filter(j => j.active && !assignedSet.has(j.id));
+      return sortJobs(unassigned);
     }
 
     async syncJobAssignments(jobId, targetStudentIds) {
@@ -1056,7 +1228,7 @@
         this.bindEvents();
       } catch (err) {
         console.error('Error al inicializar la aplicación:', err);
-        alert('Ocurrió un error al cargar la aplicación local: ' + err.message);
+        await AppDialog.alert('Ocurrió un error al cargar la aplicación local: ' + err.message, 'Error de inicio');
       }
     }
 
@@ -1097,7 +1269,7 @@
         this.security.resetInactivityTimer();
         await this.loadInitialData();
       } catch (err) {
-        alert(err.message);
+        await AppDialog.alert(err.message, 'Configuración de PIN');
       }
     }
 
@@ -1334,7 +1506,7 @@
         const notes = document.getElementById('fNotes')?.value.trim();
         const active = document.getElementById('fActive')?.checked;
 
-        if (!name || !last) return alert('Nombre y apellido son campos obligatorios.');
+        if (!name || !last) return await AppDialog.alert('Nombre y apellido son campos obligatorios.', 'Datos incompletos');
 
         if (id) {
           await this.students.update(id, { name, last, email, notes, active });
@@ -1371,7 +1543,7 @@
 
       this.showModal('Carga rápida de lista de alumnos', bodyHtml, async () => {
         const raw = document.getElementById('bulkStudentsList')?.value.trim();
-        if (!raw) return alert('Por favor pegá al menos un alumno en la lista.');
+        if (!raw) return await AppDialog.alert('Por favor pegá al menos un alumno en la lista.', 'Lista vacía');
         const isActive = document.getElementById('bulkActiveStatus')?.value === 'active';
 
         const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
@@ -1410,7 +1582,7 @@
         this.closeModal();
         await this.renderStudents();
         await this.renderDashboard();
-        alert(`Se cargaron exitosamente ${count} alumnos como ${isActive ? 'Activos' : 'Inactivos'}.`);
+        await AppDialog.alert(`Se cargaron exitosamente ${count} alumnos como ${isActive ? 'Activos' : 'Inactivos'}.`, 'Carga completada');
       });
     }
 
@@ -1511,7 +1683,7 @@
         const dueVal = document.getElementById('jDue')?.value;
         const driveUrlVal = document.getElementById('jDriveUrl')?.value.trim() || '';
 
-        if (!titleVal) return alert('El título del trabajo es obligatorio.');
+        if (!titleVal) return await AppDialog.alert('El título del trabajo es obligatorio.', 'Campo obligatorio');
 
         if (id) {
           await this.jobs.update(id, { title: titleVal, description: descVal, type: typeVal, dueDate: dueVal, driveUrl: driveUrlVal });
@@ -1782,7 +1954,7 @@
       const fileInput = document.getElementById('ePdfFile');
       const file = fileInput?.files?.[0];
       const msg = document.getElementById('driveUploadMsg');
-      if (!file) return alert('Por favor seleccioná un archivo PDF local primero.');
+      if (!file) return await AppDialog.alert('Por favor seleccioná un archivo PDF local primero.', 'Archivo requerido');
       if (msg) msg.textContent = 'Subiendo archivo a Google Drive...';
 
       try {
@@ -1790,26 +1962,26 @@
         const driveInp = document.getElementById('eDriveUrl');
         if (driveInp) driveInp.value = uploaded.viewLink;
         if (msg) msg.textContent = `✓ Subido exitosamente: "${uploaded.fileName}"`;
-        alert('Archivo PDF subido exitosamente a Google Drive.');
+        await AppDialog.alert('Archivo PDF subido exitosamente a Google Drive.', 'Subida exitosa');
       } catch (err) {
         if (msg) msg.textContent = 'Error: ' + err.message;
-        alert('Error al subir a Google Drive: ' + err.message);
+        await AppDialog.alert('Error al subir a Google Drive: ' + err.message, 'Error de Google Drive');
       }
     }
 
-    previewCurrentQR(jobTitle, studentName) {
+    async previewCurrentQR(jobTitle, studentName) {
       const url = document.getElementById('eDriveUrl')?.value.trim();
       const prompt = document.getElementById('ePracticalPrompt')?.value.trim();
       const content = url || prompt;
       if (!content) {
-        alert('Por favor ingresá un enlace de Google Drive o redactá la consigna de recuperación.');
+        await AppDialog.alert('Por favor ingresá un enlace de Google Drive o redactá la consigna de recuperación.', 'Contenido QR faltante');
         return;
       }
       this.showQRModal(content, jobTitle, studentName);
     }
 
-    showQRModal(content, jobTitle, studentName) {
-      if (!content) return alert('No hay un enlace ni consigna registrada para generar el código QR.');
+    async showQRModal(content, jobTitle, studentName) {
+      if (!content) return await AppDialog.alert('No hay un enlace ni consigna registrada para generar el código QR.', 'QR no disponible');
       const qrDataUrl = QRService.generateDataURL(content, 260);
       const isUrl = content.startsWith('http://') || content.startsWith('https://');
 
@@ -1902,11 +2074,15 @@
 
       const driveUrlOrPrompt = a.driveViewLink || job.driveUrl || a.practicalPrompt || '';
       if (!driveUrlOrPrompt) {
-        return alert('Este trabajo no tiene un enlace de Google Drive o consigna asignada aún.');
+        return await AppDialog.alert('Este trabajo no tiene un enlace de Google Drive o consigna asignada aún.', 'Material no disponible');
       }
 
       if (!student.email) {
-        const entered = prompt(`El alumno ${student.last}, ${student.name} no tiene correo registrado.\nIngresá su correo electrónico:`);
+        const entered = await AppDialog.prompt(
+          `El alumno ${student.last}, ${student.name} no tiene correo registrado.\nIngresá su correo electrónico:`,
+          '',
+          'Enviar consigna por correo'
+        );
         if (!entered || !entered.trim()) return;
         student.email = entered.trim();
         await this.students.update(student.id, { email: student.email });
@@ -1920,7 +2096,7 @@
         teacherName: profile?.teacherName || 'Prof. Pablo Oliva González'
       });
 
-      if (!res.ready) return alert(res.error);
+      if (!res.ready) return await AppDialog.alert(res.error, 'Aviso de correo');
       EmailService.openClient(res.url);
     }
 
@@ -2126,8 +2302,9 @@
       ]);
       if (!student) return;
 
-      if (unassignedJobs.length === 0) {
-        alert('Este alumno ya tiene asignados todos los trabajos prácticos activos disponibles.');
+      const sortedUnassigned = sortJobs(unassignedJobs);
+      if (sortedUnassigned.length === 0) {
+        await AppDialog.alert('Este alumno ya tiene asignados todos los trabajos prácticos activos disponibles.', 'Asignación individual');
         return;
       }
 
@@ -2136,7 +2313,7 @@
         <div class="field">
           <label>SELECCIONAR TRABAJO PRÁCTICO</label>
           <select id="singleAssignJobId">
-            ${unassignedJobs.map(j => `<option value="${j.id}">${this.esc(j.title)} (${this.esc(j.type)}) - Vence: ${j.dueDate || 'Sin fecha'}</option>`).join('')}
+            ${sortedUnassigned.map(j => `<option value="${j.id}">${this.esc(j.title)} (${this.esc(j.type)}) - Vence: ${j.dueDate || 'Sin fecha'}</option>`).join('')}
           </select>
         </div>
       `;
@@ -2152,7 +2329,8 @@
     }
 
     async removeAssignmentFromStudent(assignmentId, studentId) {
-      if (!confirm('¿Deseás remover esta asignación de trabajo para el alumno?')) return;
+      const ok = await AppDialog.confirm('¿Deseás remover esta asignación de trabajo para el alumno?', 'Remover asignación');
+      if (!ok) return;
       await this.assignments.deleteAssignment(assignmentId);
       await this.showStudent(studentId);
       await this.renderDashboard();
@@ -2217,26 +2395,27 @@
     async handleExportBackup() {
       try {
         await this.backup.exportBackup();
-        alert('Copia de seguridad generada y descargada exitosamente.');
+        await AppDialog.alert('Copia de seguridad generada y descargada exitosamente.', 'Copia de seguridad');
         await this.renderBackupInfo();
       } catch (err) {
-        alert('Error al exportar la copia: ' + err.message);
+        await AppDialog.alert('Error al exportar la copia: ' + err.message, 'Error de copia');
       }
     }
 
     async handleImportBackup() {
       const fileInput = document.getElementById('importFile');
       const file = fileInput?.files?.[0];
-      if (!file) return alert('Por favor, seleccioná un archivo JSON de respaldo.');
-      if (!confirm('⚠️ ATENCIÓN: La restauración reemplazará todos los datos actuales con la información del archivo de respaldo. ¿Deseás continuar?')) return;
+      if (!file) return await AppDialog.alert('Por favor, seleccioná un archivo JSON de respaldo.', 'Archivo requerido');
+      const ok = await AppDialog.confirm('⚠️ ATENCIÓN: La restauración reemplazará todos los datos actuales con la información del archivo de respaldo. ¿Deseás continuar?', 'Restaurar datos');
+      if (!ok) return;
 
       try {
         await this.backup.importBackupFile(file);
-        alert('Copia de seguridad restaurada correctamente.');
+        await AppDialog.alert('Copia de seguridad restaurada correctamente.', 'Restauración completada');
         if (fileInput) fileInput.value = '';
         await this.loadInitialData();
       } catch (err) {
-        alert('Error en la restauración: ' + err.message);
+        await AppDialog.alert('Error en la restauración: ' + err.message, 'Error de restauración');
       }
     }
 
@@ -2262,14 +2441,14 @@
       const teacherEmail = document.getElementById('teacherEmail')?.value.trim() || '';
       await this.db.put('settings', { key: 'teacherProfile', teacherName, teacherEmail });
       await this.renderTeacherWelcome();
-      alert('Configuración guardada correctamente.');
+      await AppDialog.alert('Configuración guardada correctamente.', 'Configuración');
     }
 
     async handleSaveDriveSettings() {
       const clientId = document.getElementById('googleClientId')?.value.trim();
       const privacyDefault = document.getElementById('googleDrivePrivacy')?.value;
       await this.fileHosting.saveConfig({ clientId, privacyDefault });
-      alert('Configuración de Google Drive guardada exitosamente.');
+      await AppDialog.alert('Configuración de Google Drive guardada exitosamente.', 'Google Drive');
     }
 
     openChangePinModal() {
@@ -2289,18 +2468,18 @@
         try {
           await this.security.verifyPin(currentPin);
         } catch (err) {
-          alert('El PIN actual es incorrecto.');
+          await AppDialog.alert('El PIN actual es incorrecto.', 'PIN incorrecto');
           return;
         }
 
-        if (newPin !== repeatPin) return alert('El nuevo PIN y su repetición no coinciden.');
+        if (newPin !== repeatPin) return await AppDialog.alert('El nuevo PIN y su repetición no coinciden.', 'PIN no coincide');
 
         try {
           await this.security.setPin(newPin);
           this.closeModal();
-          alert('El PIN docente ha sido actualizado con cifrado seguro PBKDF2.');
+          await AppDialog.alert('El PIN docente ha sido actualizado con cifrado seguro PBKDF2.', 'PIN actualizado');
         } catch (err) {
-          alert(err.message);
+          await AppDialog.alert(err.message, 'Error al cambiar PIN');
         }
       });
     }
