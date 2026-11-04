@@ -734,6 +734,14 @@ tr:hover td {
   background: rgba(255, 255, 255, 0.02);
 }
 
+tr[onclick]:hover td {
+  background: rgba(109, 91, 255, 0.05);
+}
+
+tr[onclick]:hover b {
+  color: var(--accent-2);
+}
+
 /* Badges & Status Pills */
 .badge {
   display: inline-flex;

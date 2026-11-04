@@ -509,10 +509,22 @@
   // ==========================================
   class JobService {
     constructor(db) { this.db = db; }
-    async getAll() { return await this.db.getAll('jobs'); }
+
+    async getAll() {
+      const jobs = await this.db.getAll('jobs');
+      return jobs.sort((a, b) => {
+        const matchA = (a.title || '').match(/TP\s*(\d+)/i);
+        const matchB = (b.title || '').match(/TP\s*(\d+)/i);
+        const numA = matchA ? parseInt(matchA[1], 10) : 999;
+        const numB = matchB ? parseInt(matchB[1], 10) : 999;
+        if (numA !== numB) return numA - numB;
+        return (a.title || '').localeCompare(b.title || '', undefined, { numeric: true });
+      });
+    }
+
     async getById(id) { return await this.db.get('jobs', id); }
 
-    async create({ title, description = '', type = 'Práctico', dueDate = '' }) {
+    async create({ title, description = '', type = 'Práctico', dueDate = '', driveUrl = '' }) {
       if (!title?.trim()) throw new Error('El título del trabajo es obligatorio.');
       const job = {
         id: crypto.randomUUID ? crypto.randomUUID() : 'j_' + Date.now() + '_' + Math.random().toString(36).slice(2),
@@ -520,6 +532,7 @@
         description: description.trim(),
         type: type === 'Teórico' ? 'Teórico' : 'Práctico',
         dueDate: dueDate || '',
+        driveUrl: driveUrl ? driveUrl.trim() : '',
         active: true,
         createdAt: new Date().toISOString()
       };
@@ -527,13 +540,14 @@
       return job;
     }
 
-    async update(id, { title, description, type, dueDate, active }) {
+    async update(id, { title, description, type, dueDate, driveUrl, active }) {
       const job = await this.getById(id);
       if (!job) throw new Error('Trabajo no encontrado.');
       if (title !== undefined) job.title = title.trim();
       if (description !== undefined) job.description = description.trim();
       if (type !== undefined) job.type = type === 'Teórico' ? 'Teórico' : 'Práctico';
       if (dueDate !== undefined) job.dueDate = dueDate;
+      if (driveUrl !== undefined) job.driveUrl = driveUrl ? driveUrl.trim() : '';
       if (active !== undefined) job.active = !!active;
       await this.db.put('jobs', job);
       return job;
@@ -1008,8 +1022,8 @@
       if (!studentEmail || !studentEmail.trim()) {
         return { ready: false, error: 'El alumno no tiene correo registrado.' };
       }
-      const subject = `Recuperación: ${jobTitle} - Educación Física`;
-      const body = `Hola ${studentName},\n\nTe adjunto la consigna de recuperación correspondiente al trabajo práctico "${jobTitle}".\n\nPodés consultar el documento en Google Drive desde el siguiente enlace:\n${driveUrl}\n\nAnte cualquier duda podés consultarme durante las clases.\n\nSaludos,\n${teacherName || 'Docente'}`;
+      const subject = `Consigna de recuperación: ${jobTitle} - Educación Física`;
+      const body = `Hola ${studentName},\n\nTe adjunto la consigna de recuperación correspondiente al trabajo práctico "${jobTitle}".\n\nPodés consultar el documento en Google Drive desde el siguiente enlace: ${driveUrl}\n\nAnte cualquier duda podés consultarme durante las clases, recuerda las fechas de entrega.\n\nSaludos, Prof. Pablo Oliva González.`;
       return {
         ready: true,
         url: `mailto:${encodeURIComponent(studentEmail.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
@@ -1172,7 +1186,7 @@
 
     async renderTeacherWelcome() {
       const profile = await this.db.get('settings', 'teacherProfile');
-      const teacherName = profile?.teacherName || 'Docente';
+      const teacherName = profile?.teacherName || 'Prof. Pablo Oliva González';
       const welcomeEl = document.getElementById('teacherWelcome');
       if (welcomeEl) welcomeEl.textContent = teacherName;
     }
@@ -1289,18 +1303,35 @@
       tbody.innerHTML = students.map(s => {
         const assignedCount = countMap[s.id] || 0;
         return `
-          <tr>
-            <td><b>${this.esc(s.last)}, ${this.esc(s.name)}</b></td>
-            <td>${this.esc(s.email || '—')}</td>
-            <td>${assignedCount}</td>
-            <td>${s.active ? '<span class="badge approved">Activo</span>' : '<span class="badge neutral">Inactivo</span>'}</td>
+          <tr style="cursor:pointer" onclick="GestorAcademico.app.viewStudentDetail('${s.id}', event)">
             <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:16px;color:var(--accent-2)">👤</span>
+                <div>
+                  <b style="color:var(--accent-2);font-size:14.5px">${this.esc(s.last)}, ${this.esc(s.name)}</b>
+                  <small style="display:block;color:var(--text-3);font-size:11px">Clic para ver situación, notas y TP</small>
+                </div>
+              </div>
+            </td>
+            <td>${this.esc(s.email || '—')}</td>
+            <td><span class="badge neutral">${assignedCount} trabajos</span></td>
+            <td>${s.active ? '<span class="badge approved">Activo</span>' : '<span class="badge neutral">Inactivo</span>'}</td>
+            <td onclick="event.stopPropagation()">
+              <button class="primary rowbtn" onclick="GestorAcademico.app.viewStudentDetail('${s.id}')">Ver ficha</button>
               <button class="secondary rowbtn" onclick="GestorAcademico.app.openStudentModal('${s.id}')">Editar</button>
               <button class="secondary rowbtn" onclick="GestorAcademico.app.toggleStudentActive('${s.id}')">${s.active ? 'Desactivar' : 'Activar'}</button>
             </td>
           </tr>
         `;
       }).join('');
+    }
+
+    viewStudentDetail(studentId, event) {
+      if (event && event.target && (event.target.tagName === 'BUTTON' || event.target.tagName === 'INPUT')) {
+        return;
+      }
+      this.navigate('lookup');
+      this.showStudent(studentId);
     }
 
     async openStudentModal(id = null) {
@@ -1432,14 +1463,18 @@
         const assignedCount = assignments.filter(a => a.jobId === j.id).length;
         return `
           <tr>
-            <td><b>${this.esc(j.title)}</b><br><small>${this.esc(j.description || '')}</small></td>
-            <td>${this.esc(j.type)}</td>
+            <td>
+              <b>${this.esc(j.title)}</b>
+              ${j.driveUrl ? `<br><a href="${this.esc(j.driveUrl)}" target="_blank" style="color:var(--accent-2);font-size:12px;text-decoration:underline">📄 Material Google Drive ↗</a>` : ''}
+              ${j.description ? `<br><small class="muted">${this.esc(j.description)}</small>` : ''}
+            </td>
+            <td><span class="badge ${j.type === 'Práctico' ? 'neutral' : 'approved'}">${this.esc(j.type)}</span></td>
             <td>${j.dueDate || '—'}</td>
             <td><span class="badge ${assignedCount > 0 ? 'approved' : 'neutral'}">${assignedCount} asignado(s)</span></td>
             <td>${j.active ? '<span class="badge approved">Activo</span>' : '<span class="badge neutral">Archivado</span>'}</td>
             <td>
               <button class="secondary rowbtn" onclick="GestorAcademico.app.openJobAssignmentsModal('${j.id}')">Asignaciones (${assignedCount})</button>
-              <button class="secondary rowbtn" onclick="GestorAcademico.app.openJobModal('${j.id}')">Editar</button>
+              <button class="secondary rowbtn" onclick="GestorAcademico.app.openJobModal('${j.id}')">Editar / Drive</button>
               <button class="secondary rowbtn" onclick="GestorAcademico.app.toggleJobActive('${j.id}')">${j.active ? 'Archivar' : 'Activar'}</button>
             </td>
           </tr>
@@ -1462,7 +1497,7 @@
         </div>
         <div class="formgrid">
           <div class="field full"><label>TÍTULO DEL TRABAJO</label><input id="jTitle" value="${this.esc(defaultTitle || '')}" placeholder="Ej. TP 1 - Vóley"></div>
-          <div class="field full"><label>DESCRIPCIÓN</label><textarea id="jDesc" rows="3" placeholder="Pautas, material de lectura o consignas...">${this.esc(j.description || '')}</textarea></div>
+          <div class="field full"><label>DESCRIPCIÓN</label><textarea id="jDesc" rows="2" placeholder="Pautas, material de lectura o consignas...">${this.esc(j.description || '')}</textarea></div>
           <div class="field"><label>TIPO DE TRABAJO</label>
             <select id="jType">
               <option value="Práctico" ${(j.type || defaultType) === 'Práctico' ? 'selected' : ''}>Práctico (Nota impar)</option>
@@ -1470,6 +1505,18 @@
             </select>
           </div>
           <div class="field"><label>FECHA LÍMITE</label><input id="jDue" type="date" value="${j.dueDate || ''}"></div>
+          
+          <div class="field full" style="border:1px solid rgba(109, 91, 255, 0.3);background:#171825;border-radius:12px;padding:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <label style="color:var(--accent-2);font-size:11px;margin:0">📄 ENLACE DE GOOGLE DRIVE (MATERIAL O CONSIGNA TEÓRICA)</label>
+              <a href="https://drive.google.com/" target="_blank" class="secondary rowbtn" style="text-decoration:none;font-size:11px">Abrir mi Drive ↗</a>
+            </div>
+            <input id="jDriveUrl" value="${this.esc(j.driveUrl || '')}" placeholder="https://drive.google.com/file/d/... o enlace a carpeta compartida">
+            <small class="muted" style="display:block;margin-top:6px;font-size:11.5px">
+              Ideal para trabajos <b>Teóricos</b> (PDF, cuestionario, apuntes). Los alumnos podrán consultarlo directamente o escanear el QR desde su ficha individual.
+            </small>
+          </div>
+
           ${!id ? `
           <div class="field full">
             <label>ASIGNACIÓN INICIAL</label>
@@ -1487,14 +1534,15 @@
         const descVal = document.getElementById('jDesc')?.value.trim();
         const typeVal = document.getElementById('jType')?.value;
         const dueVal = document.getElementById('jDue')?.value;
+        const driveUrlVal = document.getElementById('jDriveUrl')?.value.trim() || '';
 
         if (!titleVal) return alert('El título del trabajo es obligatorio.');
 
         if (id) {
-          await this.jobs.update(id, { title: titleVal, description: descVal, type: typeVal, dueDate: dueVal });
+          await this.jobs.update(id, { title: titleVal, description: descVal, type: typeVal, dueDate: dueVal, driveUrl: driveUrlVal });
           this.closeModal();
         } else {
-          const createdJob = await this.jobs.create({ title: titleVal, description: descVal, type: typeVal, dueDate: dueVal });
+          const createdJob = await this.jobs.create({ title: titleVal, description: descVal, type: typeVal, dueDate: dueVal, driveUrl: driveUrlVal });
           const assignMode = document.getElementById('jAssign')?.value;
           this.closeModal();
 
@@ -1662,48 +1710,52 @@
           <textarea id="eNotes" rows="2" placeholder="Comentarios de desempeño o refuerzo...">${this.esc(a.notes || '')}</textarea>
         </div>
 
-        <!-- SECCIÓN DE RECUPERACIÓN AUTOMÁTICA AL DESAPROBAR -->
+        ${!isPractical ? `
+        <!-- TRABAJO TEÓRICO: SECCIÓN DE MATERIAL / ARCHIVO DRIVE SIEMPRE DISPONIBLE -->
+        <div style="margin-top:16px;border:1px solid rgba(109, 91, 255, 0.35);background:#171825;border-radius:14px;padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <label style="color:var(--accent-2);font-size:12px;margin:0">📄 Archivo o Consigna en Google Drive (Trabajo Teórico)</label>
+            <a href="https://drive.google.com/" target="_blank" class="secondary rowbtn" style="text-decoration:none;font-size:11px">Abrir mi Drive ↗</a>
+          </div>
+          <p class="muted" style="font-size:12px;margin:0 0 10px">
+            Pegá aquí el link de Google Drive (PDF, documento o carpeta de estudio). Quedará vinculado al alumno:
+          </p>
+          <div class="field">
+            <input id="eDriveUrl" value="${this.esc(a.driveViewLink || job.driveUrl || '')}" placeholder="https://drive.google.com/file/d/.../view">
+          </div>
+          <div class="field" style="margin-top:10px">
+            <label>CONSIGNA O PAUTAS ESCRITAS (OPCIONAL)</label>
+            <textarea id="ePracticalPrompt" rows="2" placeholder="Puntos a responder, cuestionario o consignas complementarias...">${this.esc(a.practicalPrompt || '')}</textarea>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="secondary rowbtn" onclick="GestorAcademico.app.previewCurrentQR('${this.esc(job.title)}', '${this.esc(student.name)}')">📱 Generar Código QR</button>
+            <button type="button" class="secondary rowbtn" onclick="GestorAcademico.app.sendRecoveryEmail('${a.id}')">✉️ Preparar Correo</button>
+          </div>
+        </div>
+        ` : `
+        <!-- TRABAJO PRÁCTICO: SECCIÓN DE RECUPERACIÓN (SE DESPLIEGA AL DESAPROBAR) -->
         <div id="recoveryPanel" style="display:${a.status === 'failed' ? 'block' : 'none'};margin-top:16px;border:1px solid #4a2838;background:#17121b;border-radius:14px;padding:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <label style="color:#f2aab7;font-size:12px;margin:0">
-              ${isPractical ? '📋 Formulario de Consigna Práctica para Recuperación' : '📄 Material Teórico de Recuperación'}
-            </label>
-            <a href="https://drive.google.com/" target="_blank" class="secondary rowbtn" style="text-decoration:none;font-size:11px">
-              Abrir mi Drive ↗
-            </a>
+            <label style="color:#f2aab7;font-size:12px;margin:0">📋 Formulario de Consigna Práctica para Recuperación</label>
+            <a href="https://drive.google.com/" target="_blank" class="secondary rowbtn" style="text-decoration:none;font-size:11px">Abrir mi Drive ↗</a>
           </div>
-
-          <p class="muted" style="font-size:12px;margin:0 0 12px">
-            ${isPractical 
-              ? 'Al ser una evaluación práctica desaprobada, redactá aquí los ejercicios, circuito o test que el alumno debe realizar.' 
-              : 'Al ser una evaluación teórica desaprobada, pegá el enlace del PDF en Google Drive con la consigna o cuestionario.'}
+          <p class="muted" style="font-size:12px;margin:0 0 10px">
+            Al ser una evaluación práctica desaprobada, redactá aquí la rutina o ejercicios que debe realizar el alumno:
           </p>
-
-          ${isPractical ? `
-            <div class="field">
-              <label>CONSIGNA O RUTINA PRÁCTICA DE RECUPERACIÓN</label>
-              <textarea id="ePracticalPrompt" rows="4" placeholder="Ejemplo: Realizar circuito de 3 series: 10 flexiones de brazos, 15 sentadillas, salto en largo y registro de tiempo en test de resistencia.">${this.esc(a.practicalPrompt || '')}</textarea>
-            </div>
-            <div class="field" style="margin-top:10px">
-              <label>ENLACE COMPARTIDO DE GOOGLE DRIVE (OPCIONAL, EJ. VIDEO DEMOSTRATIVO)</label>
-              <input id="eDriveUrl" value="${this.esc(a.driveViewLink || '')}" placeholder="https://drive.google.com/file/d/... (opcional)">
-            </div>
-          ` : `
-            <div class="field">
-              <label>ENLACE COMPARTIDO DEL PDF EN GOOGLE DRIVE</label>
-              <input id="eDriveUrl" value="${this.esc(a.driveViewLink || '')}" placeholder="https://drive.google.com/file/d/.../view">
-            </div>
-            <div class="field" style="margin-top:10px">
-              <label>CONSIGNA O PAUTAS TEÓRICAS PUNTUALES</label>
-              <textarea id="ePracticalPrompt" rows="3" placeholder="Puntos específicos a responder o reforzar...">${this.esc(a.practicalPrompt || '')}</textarea>
-            </div>
-          `}
-
-          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          <div class="field">
+            <label>CONSIGNA O RUTINA PRÁCTICA</label>
+            <textarea id="ePracticalPrompt" rows="3" placeholder="Ejemplo: Realizar circuito de 3 series: 10 flexiones, 15 sentadillas, salto en largo...">${this.esc(a.practicalPrompt || '')}</textarea>
+          </div>
+          <div class="field" style="margin-top:10px">
+            <label>ENLACE COMPARTIDO DE GOOGLE DRIVE (OPCIONAL, EJ. VIDEO DEMO)</label>
+            <input id="eDriveUrl" value="${this.esc(a.driveViewLink || job.driveUrl || '')}" placeholder="https://drive.google.com/file/d/... (opcional)">
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
             <button type="button" class="secondary rowbtn" onclick="GestorAcademico.app.previewCurrentQR('${this.esc(job.title)}', '${this.esc(student.name)}')">📱 Ver Código QR</button>
             <button type="button" class="secondary rowbtn" onclick="GestorAcademico.app.sendRecoveryEmail('${a.id}')">✉️ Preparar Correo</button>
           </div>
         </div>
+        `}
 
         <div class="notice" style="margin-top:14px">ℹ️ Los cambios de calificación quedan registrados en el historial con fecha y hora.</div>
       `;
@@ -1834,8 +1886,10 @@
         this.db.get('settings', 'teacherProfile')
       ]);
 
-      const recoveryContent = a.driveViewLink || a.practicalPrompt;
-      if (!recoveryContent) return alert('Este trabajo no tiene consigna ni enlace de recuperación cargado.');
+      const driveUrlOrPrompt = a.driveViewLink || job.driveUrl || a.practicalPrompt || '';
+      if (!driveUrlOrPrompt) {
+        return alert('Este trabajo no tiene un enlace de Google Drive o consigna asignada aún.');
+      }
 
       if (!student.email) {
         const entered = prompt(`El alumno ${student.last}, ${student.name} no tiene correo registrado.\nIngresá su correo electrónico:`);
@@ -1844,16 +1898,12 @@
         await this.students.update(student.id, { email: student.email });
       }
 
-      const driveUrlOrPrompt = a.driveViewLink 
-        ? a.driveViewLink 
-        : `Consigna de recuperación práctica:\n${a.practicalPrompt}`;
-
       const res = EmailService.prepareMailtoLink({
         studentEmail: student.email,
-        studentName: `${student.name} ${student.last}`,
+        studentName: `${student.name}`,
         jobTitle: job.title,
         driveUrl: driveUrlOrPrompt,
-        teacherName: profile?.teacherName || 'Docente de Educación Física'
+        teacherName: profile?.teacherName || 'Prof. Pablo Oliva González'
       });
 
       if (!res.ready) return alert(res.error);
@@ -1925,6 +1975,14 @@
       const jobMap = new Map(jobs.map(j => [j.id, j]));
       const studentAssignments = assignments.map(a => ({ ...a, job: jobMap.get(a.jobId) })).filter(a => a.job);
 
+      // Ordenar estrictamente del TP 1 al TP 8
+      studentAssignments.sort((a, b) => {
+        const numA = (a.job.title.match(/TP\s*(\d+)/i) ? parseInt(a.job.title.match(/TP\s*(\d+)/i)[1], 10) : 999);
+        const numB = (b.job.title.match(/TP\s*(\d+)/i) ? parseInt(b.job.title.match(/TP\s*(\d+)/i)[1], 10) : 999);
+        if (numA !== numB) return numA - numB;
+        return a.job.title.localeCompare(b.job.title, undefined, { numeric: true });
+      });
+
       const counts = { approved: 0, pending: 0, failed: 0 };
       studentAssignments.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
 
@@ -1938,7 +1996,12 @@
       if (!viewContainer) return;
 
       viewContainer.innerHTML = `
-        <div class="studenthero" style="margin-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:6px;flex-wrap:wrap;gap:8px">
+          <button class="secondary rowbtn" onclick="GestorAcademico.app.navigate('students')">← Volver a lista de alumnos</button>
+          <button class="secondary rowbtn" onclick="GestorAcademico.app.clearLookup()">Buscar otro alumno</button>
+        </div>
+
+        <div class="studenthero" style="margin-top:10px">
           <small style="color:var(--primary);letter-spacing:1px;font-weight:700">SITUACIÓN ACADÉMICA INDIVIDUAL</small>
           <h2>${this.esc(student.last)}, ${this.esc(student.name)}</h2>
           <span class="muted">${student.email || 'Sin correo registrado'}</span>
@@ -1953,12 +2016,16 @@
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px">
-          <h2 style="margin:0">Detalle de trabajos asignados</h2>
+          <h2 style="margin:0">Detalle de trabajos asignados (TP 1 al 8)</h2>
           <button class="secondary rowbtn" onclick="GestorAcademico.app.openAssignJobToStudentModal('${student.id}')">+ Asignar trabajo individual</button>
         </div>
 
         ${studentAssignments.map(a => {
           const isOverdue = a.status === 'pending' && this.jobs.isOverdue(a.job);
+          const activeDriveUrl = a.driveViewLink || a.job.driveUrl || '';
+          const qrContent = activeDriveUrl || a.practicalPrompt || '';
+          const hasQr = !!qrContent;
+          const qrDataUrl = hasQr ? QRService.generateDataURL(qrContent, 180) : null;
           return `
             <div class="card" style="margin:10px 0;padding:16px">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1979,38 +2046,44 @@
               <small class="muted">Fecha límite: ${a.job.dueDate || 'Sin fecha'}</small>
               ${a.notes ? `<p style="margin:8px 0 0;font-size:13px;color:#f0f0ff"><b>Observación docente:</b> ${this.esc(a.notes)}</p>` : ''}
 
+              ${hasQr ? `
+                <div style="margin-top:14px;padding:12px 14px;background:#151622;border:1px solid rgba(109, 91, 255, 0.28);border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                  <div style="display:flex;align-items:center;gap:14px">
+                    <div style="background:#ffffff;padding:5px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,0.45);flex-shrink:0">
+                      <img src="${qrDataUrl}" alt="Código QR" style="display:block;width:90px;height:90px;border-radius:4px">
+                    </div>
+                    <div>
+                      <b style="color:var(--text);font-size:13px">
+                        ${a.status === 'failed' ? '⚠️ Material / Recuperación' : '📱 Acceso con Código QR'}
+                      </b>
+                      <p class="muted" style="margin:3px 0 0;font-size:11.5px">
+                        Escaneá este código con la cámara del celular para abrir el documento.
+                      </p>
+                      ${a.practicalPrompt && a.job.type === 'Práctico' ? `
+                        <div style="margin-top:5px;font-size:12px;color:#f0eeff;background:rgba(255,255,255,0.04);padding:6px 10px;border-radius:6px">
+                          <b>Consigna:</b> ${this.esc(a.practicalPrompt)}
+                        </div>
+                      ` : ''}
+                    </div>
+                  </div>
+
+                  <div>
+                    <button type="button" class="primary rowbtn" style="padding:8px 14px;font-size:12px" onclick="GestorAcademico.app.sendRecoveryEmail('${a.id}')">
+                      ✉️ Enviar por correo
+                    </button>
+                  </div>
+                </div>
+              ` : (a.status === 'failed' ? `
+                <div class="notice warn" style="margin-top:12px;padding:10px 14px;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+                  <span>⚠️ <b>Trabajo desaprobado:</b> Sin enlace de Drive o consigna cargada aún.</span>
+                  <button class="secondary rowbtn" onclick="GestorAcademico.app.openEvaluationModal('${a.id}')">Cargar enlace Drive</button>
+                </div>
+              ` : '')}
+
               <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
                 <button class="secondary rowbtn" onclick="GestorAcademico.app.openEvaluationModal('${a.id}')">Calificar / Consigna</button>
                 ${a.status === 'pending' ? `<button class="danger rowbtn" onclick="GestorAcademico.app.removeAssignmentFromStudent('${a.id}', '${student.id}')">Desasignar</button>` : ''}
               </div>
-
-              ${a.status === 'failed' ? `
-                <div class="notice warn" style="margin:12px 0 0;padding:14px;border-radius:12px;border:1px solid #654e26">
-                  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
-                    <div style="flex:1;min-width:240px">
-                      <b style="color:#e8b86d">
-                        ${a.job.type === 'Práctico' ? '📋 Recuperación Práctica Asignada:' : '📄 Recuperación Teórica (Drive):'}
-                      </b>
-                      ${a.practicalPrompt ? `
-                        <div style="background:#1e1822;padding:9px 12px;border-radius:8px;margin:6px 0;font-size:13px;color:#f5f3ff;border-left:3px solid var(--amber)">
-                          ${this.esc(a.practicalPrompt)}
-                        </div>
-                      ` : ''}
-                      ${a.driveViewLink ? `
-                        <div style="font-size:12px;margin-top:4px">
-                          <a href="${a.driveViewLink}" target="_blank" style="color:var(--primary);text-decoration:underline">Abrir archivo de consigna en Google Drive ↗</a>
-                        </div>
-                      ` : (!a.practicalPrompt ? '<div style="font-size:12px;color:var(--muted);margin-top:3px">Sin consigna redactada todavía. Hacé clic en "Calificar / Consigna".</div>' : '')}
-                    </div>
-
-                    <div style="display:flex;gap:6px;flex-wrap:wrap">
-                      ${(a.driveViewLink || a.practicalPrompt) ? `
-                        <button class="primary rowbtn" onclick="GestorAcademico.app.showQRModal('${this.esc(a.driveViewLink || a.practicalPrompt)}', '${this.esc(a.job.title)}', '${this.esc(student.name)}')">📱 Ver QR</button>
-                        <button class="secondary rowbtn" onclick="GestorAcademico.app.sendRecoveryEmail('${a.id}')">✉️ Correo</button>
-                      ` : ''}
-                    </div>
-                  </div>
-                </div>` : ''}
             </div>
           `;
         }).join('') || '<p class="empty">Este alumno todavía no tiene trabajos asignados.</p>'}
@@ -2273,7 +2346,7 @@
 
         const jobs = [];
         for (const j of jobsData) {
-          const job = { id: uid(), title: j.title, type: j.type, description: '', dueDate: '', active: true, createdAt: now };
+          const job = { id: uid(), title: j.title, type: j.type, description: '', dueDate: '', driveUrl: '', active: true, createdAt: now };
           await this.db.put('jobs', job);
           jobs.push(job);
         }
