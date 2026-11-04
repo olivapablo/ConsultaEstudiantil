@@ -437,8 +437,15 @@
     }
 
     setupActivityListeners() {
-      const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
-      const handler = () => { if (this.isAuthenticated) this.resetInactivityTimer(); };
+      const events = ['mousedown', 'keydown', 'touchstart'];
+      let lastActivity = 0;
+      const handler = () => {
+        const now = Date.now();
+        if (now - lastActivity > 15000) {
+          lastActivity = now;
+          if (this.isAuthenticated) this.resetInactivityTimer();
+        }
+      };
       events.forEach(ev => window.addEventListener(ev, handler, { passive: true }));
     }
   }
@@ -1266,6 +1273,11 @@
       const filter = document.getElementById('studentFilter')?.value || 'active';
       const students = await this.students.search({ query: q, filter });
       const assignments = await this.assignments.getAll();
+      const countMap = Object.create(null);
+      for (let i = 0; i < assignments.length; i++) {
+        const sId = assignments[i].studentId;
+        countMap[sId] = (countMap[sId] || 0) + 1;
+      }
       const tbody = document.getElementById('studentsBody');
       if (!tbody) return;
 
@@ -1275,7 +1287,7 @@
       }
 
       tbody.innerHTML = students.map(s => {
-        const assignedCount = assignments.filter(a => a.studentId === s.id).length;
+        const assignedCount = countMap[s.id] || 0;
         return `
           <tr>
             <td><b>${this.esc(s.last)}, ${this.esc(s.name)}</b></td>
@@ -1562,7 +1574,7 @@
       ]);
 
       const jobSelect = document.getElementById('evalJob');
-      if (jobSelect) {
+      if (jobSelect && jobSelect.options.length <= 1) {
         const currentVal = jobSelect.value;
         jobSelect.innerHTML = '<option value="">Todos los trabajos</option>' +
           jobs.map(j => `<option value="${j.id}" ${j.id === currentVal ? 'selected' : ''}>${this.esc(j.title)}</option>`).join('');

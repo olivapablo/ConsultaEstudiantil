@@ -1,11 +1,11 @@
 /* ==========================================================================
-   LUMINOUS DARK GLASS THEME - GESTOR ACADÉMICO
+   HIGH-PERFORMANCE LUMINOUS DARK GLASS THEME - GESTOR ACADÉMICO
    Font: Nohemi (Local Webfont)
-   Visual System: Near-black canvas, frosted glass surfaces, hairline borders,
-                  and volumetric violet accent illumination.
+   Visual System: Near-black canvas, crisp glass gradients, hairline borders,
+                  and volumetric violet illumination (GPU Optimized 60 FPS).
    ========================================================================== */
 
-/* 1. TYPOGRAPHY - NOHEMI FONT FACE (Local Webfont) */
+/* 1. TYPOGRAPHY - NOHEMI FONT FACE */
 @font-face {
   font-family: 'Nohemi';
   src: url('../fonts/Nohemi-Light.woff2') format('woff2'),
@@ -70,11 +70,11 @@
   /* Canvas & Neutrals */
   --bg-base: #07070a;
   --bg-raised: #0d0d12;
-  --surface: #131318;
-  --surface-2: #1a1a21;
-  --surface-3: #22222b;
+  --surface: #14151e;
+  --surface-2: #1b1d28;
+  --surface-3: #222432;
   --text: #f5f5f7;
-  --text-2: rgba(255, 255, 255, 0.64);
+  --text-2: rgba(255, 255, 255, 0.65);
   --text-3: rgba(255, 255, 255, 0.40);
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.15);
@@ -84,9 +84,9 @@
   --accent-2: #a89cff;
   --accent-soft: rgba(168, 156, 255, 0.72);
   --accent-deep: #2a1f8f;
-  --accent-glow: rgba(109, 91, 255, 0.42);
+  --accent-glow: rgba(109, 91, 255, 0.35);
 
-  /* Aliases for app engine */
+  /* Aliases for engine compatibility */
   --bg: var(--bg-base);
   --panel: var(--surface);
   --panel2: var(--surface-2);
@@ -99,16 +99,16 @@
 
   /* Semantic status */
   --green: #22e06b;
-  --green-glow: rgba(34, 224, 107, 0.25);
+  --green-glow: rgba(34, 224, 107, 0.20);
   --amber: #ffd21f;
-  --amber-glow: rgba(255, 210, 31, 0.25);
+  --amber-glow: rgba(255, 210, 31, 0.20);
   --red: #ff4d4f;
-  --red-glow: rgba(255, 77, 79, 0.25);
+  --red-glow: rgba(255, 77, 79, 0.20);
 
   /* Radii scale */
-  --radius-sm: 12px;
-  --radius: 20px;
-  --radius-lg: 28px;
+  --radius-sm: 11px;
+  --radius: 18px;
+  --radius-lg: 24px;
   --radius-pill: 999px;
 }
 
@@ -125,9 +125,9 @@ body {
   margin: 0;
   background-color: var(--bg-base);
   background-image: 
-    radial-gradient(ellipse at 12% 0%, rgba(109, 91, 255, 0.20) 0%, rgba(42, 31, 143, 0.10) 30%, transparent 60%),
-    radial-gradient(circle at 88% 85%, rgba(109, 91, 255, 0.07) 0%, transparent 45%);
-  background-attachment: fixed;
+    radial-gradient(ellipse at 12% 0%, rgba(109, 91, 255, 0.16) 0%, rgba(42, 31, 143, 0.06) 28%, transparent 55%),
+    radial-gradient(circle at 88% 85%, rgba(109, 91, 255, 0.05) 0%, transparent 40%);
+  background-repeat: no-repeat;
   color: var(--text);
   font-family: 'Nohemi', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
@@ -142,15 +142,15 @@ button, input, select, textarea {
   font-family: inherit;
 }
 
-/* Glass Buttons */
+/* Glass Buttons - GPU Optimized */
 button {
   cursor: pointer;
   border: 0;
   border-radius: var(--radius-pill);
-  padding: 10px 18px;
+  padding: 9px 16px;
   font-weight: 550;
   letter-spacing: -0.01em;
-  transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.14s ease, opacity 0.14s ease, background 0.14s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -162,72 +162,63 @@ button:active {
 }
 
 .primary {
-  background: linear-gradient(135deg, #7b6aff 0%, #5846f3 100%);
+  background: linear-gradient(135deg, #7867ff 0%, #5442ed 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: 
-    0 0 28px var(--accent-glow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  box-shadow: 0 4px 18px var(--accent-glow);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .primary:hover {
-  background: linear-gradient(135deg, #8b7bff 0%, #6857fa 100%);
-  box-shadow: 
-    0 0 38px rgba(109, 91, 255, 0.65),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  transform: translateY(-2px);
+  background: linear-gradient(135deg, #8878ff 0%, #6453f8 100%);
+  box-shadow: 0 6px 24px rgba(109, 91, 255, 0.55);
+  transform: translateY(-1.5px);
 }
 
 .secondary {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.015) 100%), var(--surface);
+  background: #171822;
   color: var(--text);
   border: 1px solid var(--border);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .secondary:hover {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.03) 100%), var(--surface-2);
+  background: #212330;
   border-color: var(--border-strong);
   color: #fff;
-  transform: translateY(-1.5px);
+  transform: translateY(-1px);
 }
 
 .danger {
-  background: linear-gradient(145deg, rgba(255, 77, 79, 0.16) 0%, rgba(255, 77, 79, 0.05) 100%);
+  background: #2a161e;
   color: #ff9da0;
   border: 1px solid rgba(255, 77, 79, 0.28);
-  box-shadow: 0 6px 20px rgba(255, 77, 79, 0.15);
 }
 
 .danger:hover {
-  background: linear-gradient(145deg, rgba(255, 77, 79, 0.26) 0%, rgba(255, 77, 79, 0.10) 100%);
+  background: #391c28;
   border-color: rgba(255, 77, 79, 0.45);
   color: #fff;
-  transform: translateY(-1.5px);
+  transform: translateY(-1px);
 }
 
-/* Glass Inputs & Form Controls */
+/* Form Controls */
 input, select, textarea {
   width: 100%;
-  background: rgba(19, 19, 24, 0.75);
+  background: #101118;
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 12px 14px;
+  padding: 11px 13px;
   outline: none;
   font-size: 14px;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
-  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
 input:focus, select:focus, textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow), inset 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 3px var(--accent-glow), inset 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 label {
@@ -235,8 +226,8 @@ label {
   color: var(--text-3);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  margin: 0 0 7px;
+  letter-spacing: 0.07em;
+  margin: 0 0 6px;
   text-transform: uppercase;
 }
 
@@ -245,14 +236,14 @@ h1, h2, h3, p {
 }
 
 h1 {
-  font-size: 32px;
+  font-size: 30px;
   letter-spacing: -0.035em;
   font-weight: 600;
   margin-bottom: 6px;
 }
 
 h2 {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.02em;
   margin-bottom: 12px;
@@ -266,20 +257,18 @@ small, .muted {
 .app {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 310px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr);
   max-width: 1900px;
   margin: 0 auto;
   background: transparent;
-  transition: grid-template-columns 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: grid-template-columns 0.24s ease;
 }
 
 .app.sidebar-collapsed {
   grid-template-columns: 0px minmax(0, 1fr);
 }
 
-/* ==========================================================================
-   4. SIDEBAR (Frosted Dark Glass with Volumetric Backing)
-   ========================================================================== */
+/* 4. SIDEBAR - Smooth, Fast & Scrollbar-free */
 .sidebar {
   position: sticky;
   top: 0;
@@ -287,17 +276,15 @@ small, .muted {
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  background: linear-gradient(165deg, rgba(26, 26, 33, 0.88) 0%, rgba(13, 13, 18, 0.94) 50%, rgba(7, 7, 10, 0.98) 100%);
+  background: linear-gradient(165deg, #181923 0%, #101118 55%, #07070a 100%);
   border-right: 1px solid var(--border);
-  padding: 26px 22px 20px;
+  padding: 24px 20px 18px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  backdrop-filter: blur(32px);
-  -webkit-backdrop-filter: blur(32px);
-  box-shadow: 20px 0 60px rgba(0, 0, 0, 0.45);
-  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-  min-width: 310px;
+  gap: 22px;
+  box-shadow: 8px 0 30px rgba(0, 0, 0, 0.35);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  min-width: 300px;
   z-index: 50;
 }
 
@@ -315,8 +302,8 @@ small, .muted {
 
 .sidebar-toggle {
   margin-left: auto;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
@@ -331,7 +318,7 @@ small, .muted {
 }
 
 .sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.10);
   border-color: var(--border-strong);
   color: #fff;
 }
@@ -342,10 +329,10 @@ small, .muted {
   top: 50%;
   transform: translateY(-50%);
   z-index: 200;
-  width: 28px;
-  height: 60px;
-  border-radius: 0 14px 14px 0;
-  background: rgba(26, 26, 33, 0.92);
+  width: 26px;
+  height: 56px;
+  border-radius: 0 12px 12px 0;
+  background: #1b1c27;
   border: 1px solid var(--border);
   border-left: none;
   color: var(--text-2);
@@ -354,44 +341,42 @@ small, .muted {
   align-items: center;
   justify-content: center;
   padding: 0;
-  box-shadow: 6px 0 24px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.35);
+  transition: all 0.16s ease;
 }
 
 .sidebar-open-btn:hover {
-  background: rgba(42, 31, 143, 0.85);
+  background: #2a1f8f;
   color: #fff;
-  width: 34px;
+  width: 32px;
 }
 
 .brand {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 13px;
-  padding: 2px 0 20px;
+  gap: 12px;
+  padding: 2px 0 18px;
   border-bottom: 1px solid var(--border);
 }
 
 .logo {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #7b6aff 0%, #5846f3 100%);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #7867ff 0%, #5442ed 100%);
   color: #ffffff;
-  box-shadow: 0 0 24px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 18px var(--accent-glow);
   display: grid;
   place-items: center;
   font-weight: 700;
-  font-size: 22px;
+  font-size: 20px;
   flex-shrink: 0;
 }
 
 .brand b {
   display: block;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.025em;
   color: #fff;
@@ -405,7 +390,7 @@ small, .muted {
 }
 
 .welcome {
-  padding: 2px 0 20px;
+  padding: 2px 0 18px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -414,16 +399,16 @@ small, .muted {
   letter-spacing: 0.12em;
   color: var(--accent-2);
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   text-transform: uppercase;
 }
 
 .welcome h2 {
-  font-size: 25px;
+  font-size: 23px;
   line-height: 1.15;
   letter-spacing: -0.035em;
   font-weight: 600;
-  margin: 0 0 6px;
+  margin: 0 0 5px;
 }
 
 .welcome h2 span {
@@ -437,7 +422,7 @@ small, .muted {
 
 .navgroup {
   display: grid;
-  gap: 8px;
+  gap: 7px;
 }
 
 .navlabel {
@@ -451,14 +436,14 @@ small, .muted {
 
 .sidebar nav {
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .nav {
-  height: 46px;
+  height: 44px;
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 12px;
   text-align: left;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -466,24 +451,22 @@ small, .muted {
   background: transparent;
   font-size: 13.5px;
   font-weight: 500;
-  padding: 0 14px;
-  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  padding: 0 12px;
+  transition: transform 0.14s ease, background 0.14s ease;
   position: relative;
 }
 
 .nav .ico {
   width: 20px;
-  font-size: 18px;
+  font-size: 17px;
   color: var(--text-3);
   text-align: center;
-  transition: color 0.2s ease;
 }
 
 .nav:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
   color: #fff;
-  transform: translateX(3px);
+  transform: translateX(2px);
 }
 
 .nav:hover .ico {
@@ -491,12 +474,10 @@ small, .muted {
 }
 
 .nav.active {
-  background: linear-gradient(90deg, rgba(109, 91, 255, 0.18) 0%, rgba(109, 91, 255, 0.04) 100%), var(--surface-2);
-  border-color: rgba(109, 91, 255, 0.35);
+  background: linear-gradient(90deg, rgba(109, 91, 255, 0.18) 0%, rgba(109, 91, 255, 0.03) 100%), #171822;
+  border-color: rgba(109, 91, 255, 0.32);
   color: #fff;
-  box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .nav.active::before {
@@ -508,7 +489,6 @@ small, .muted {
   width: 3px;
   border-radius: 0 4px 4px 0;
   background: var(--accent);
-  box-shadow: 0 0 12px var(--accent);
 }
 
 .nav.active .ico {
@@ -517,17 +497,17 @@ small, .muted {
 
 .sidebottom {
   border-top: 1px solid var(--border);
-  padding: 18px 0 0;
+  padding: 16px 0 0;
   margin-top: auto;
 }
 
 .local-state {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   color: var(--text-3);
   font-size: 11px;
-  padding: 0 6px 14px;
+  padding: 0 4px 12px;
 }
 
 .state-dot, .online-dot {
@@ -536,7 +516,7 @@ small, .muted {
   display: inline-block;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 12px var(--green-glow);
+  box-shadow: 0 0 8px var(--green-glow);
 }
 
 .lock-button {
@@ -547,32 +527,30 @@ small, .muted {
   text-align: left;
   font-size: 12px;
   border-radius: var(--radius-sm);
-  padding: 10px 14px;
+  padding: 9px 13px;
 }
 
 .lock-button:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
   border-color: var(--border-strong);
   color: #fff;
 }
 
-/* ==========================================================================
-   5. WORKSPACE & MAIN CONTENT
-   ========================================================================== */
+/* 5. WORKSPACE & MAIN CONTENT */
 main {
-  padding: 0 40px 48px;
+  padding: 0 36px 44px;
   max-width: none;
   width: 100%;
   margin: 0;
 }
 
 .workspacebar {
-  height: 74px;
+  height: 70px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 34px;
+  margin-bottom: 28px;
 }
 
 .crumb {
@@ -607,85 +585,75 @@ main {
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
-  margin-left: 12px;
+  width: 34px;
+  height: 34px;
+  margin-left: 10px;
   border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, rgba(109, 91, 255, 0.25) 0%, rgba(42, 31, 143, 0.15) 100%), var(--surface-2);
-  border: 1px solid rgba(109, 91, 255, 0.35);
+  background: #201f30;
+  border: 1px solid rgba(109, 91, 255, 0.3);
   color: var(--accent-2);
   font-weight: 700;
-  font-size: 13px;
-  box-shadow: 0 0 16px rgba(109, 91, 255, 0.18);
+  font-size: 12.5px;
 }
 
 .top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 28px;
+  gap: 15px;
+  margin-bottom: 24px;
 }
 
 .top p {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--text-2);
   margin: 0;
 }
 
 .actions {
   display: flex;
-  gap: 10px;
+  gap: 9px;
   flex-wrap: wrap;
 }
 
-/* ==========================================================================
-   6. CARDS & GLASS PANELS (Frosted Glass Recipe + Bottom-Up Light)
-   ========================================================================== */
+/* 6. CARDS & PANELS - Fast Shaders */
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
 .card, .panel {
   position: relative;
-  background: 
-    linear-gradient(145deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.015) 45%, rgba(255, 255, 255, 0) 100%),
-    var(--surface);
+  background: linear-gradient(150deg, #161822 0%, #101117 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 20px 60px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 .card {
-  padding: 22px;
-  min-height: 135px;
-  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-  overflow: hidden;
+  padding: 20px;
+  min-height: 130px;
+  transition: transform 0.16s ease, border-color 0.16s ease;
 }
 
-/* Bottom-up luminous glow on hover */
 .card:hover {
   border-color: rgba(109, 91, 255, 0.35);
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 24px 70px rgba(0, 0, 0, 0.55),
-    0 0 40px rgba(109, 91, 255, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 14px 38px rgba(0, 0, 0, 0.45);
 }
 
 .stat {
-  font-size: 36px;
+  font-size: 34px;
   letter-spacing: -0.03em;
   font-weight: 300;
-  margin: 8px 0 2px;
+  margin: 6px 0 2px;
   font-variant-numeric: tabular-nums;
   color: #fff;
 }
@@ -697,12 +665,12 @@ main {
 
 .staticon {
   color: var(--accent-2);
-  font-size: 20px;
+  font-size: 19px;
 }
 
 .panel {
-  padding: 26px;
-  margin-top: 22px;
+  padding: 24px;
+  margin-top: 20px;
 }
 
 .section {
@@ -715,10 +683,10 @@ main {
 
 .toolbar {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .toolbar input {
@@ -729,9 +697,7 @@ main {
   max-width: 220px;
 }
 
-/* ==========================================================================
-   7. TABLES (Sticky Glass Header + Hairline Borders)
-   ========================================================================== */
+/* 7. TABLES - High-Performance */
 .tablewrap {
   overflow-x: auto;
   border-radius: var(--radius-sm);
@@ -745,19 +711,19 @@ table {
 th {
   text-align: left;
   color: var(--text-3);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 14px 12px;
+  padding: 13px 10px;
   border-bottom: 1px solid var(--border);
-  background: rgba(19, 19, 24, 0.6);
+  background: #111218;
 }
 
 td {
-  padding: 14px 12px;
+  padding: 13px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 tr:last-child td {
@@ -772,20 +738,20 @@ tr:hover td {
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 11px;
+  gap: 5px;
+  padding: 4px 10px;
   border-radius: var(--radius-pill);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   border: 1px solid transparent;
 }
 
 .badge::before {
   content: '';
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   display: inline-block;
 }
@@ -797,7 +763,6 @@ tr:hover td {
 }
 .approved::before {
   background: var(--green);
-  box-shadow: 0 0 8px var(--green-glow);
 }
 
 .pending {
@@ -807,7 +772,6 @@ tr:hover td {
 }
 .pending::before {
   background: var(--amber);
-  box-shadow: 0 0 8px var(--amber-glow);
 }
 
 .failed, .expired {
@@ -817,7 +781,6 @@ tr:hover td {
 }
 .failed::before, .expired::before {
   background: var(--red);
-  box-shadow: 0 0 8px var(--red-glow);
 }
 
 .neutral {
@@ -830,24 +793,22 @@ tr:hover td {
 }
 
 .rowbtn {
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 5px 11px;
+  font-size: 11.5px;
   border-radius: var(--radius-pill);
 }
 
 .empty {
-  padding: 38px;
+  padding: 34px;
   text-align: center;
   color: var(--text-3);
 }
 
-/* ==========================================================================
-   8. FORMS & MODALS (Deep Glass Overlay + Smooth Rise)
-   ========================================================================== */
+/* 8. FORMS & MODALS */
 .formgrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 13px;
 }
 
 .field.full {
@@ -860,10 +821,8 @@ tr:hover td {
   background: rgba(7, 7, 10, 0.82);
   display: none;
   place-items: center;
-  padding: 18px;
+  padding: 16px;
   z-index: 1000;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 .modalback.show {
@@ -874,23 +833,20 @@ tr:hover td {
   width: min(580px, 100%);
   max-height: 90vh;
   overflow-y: auto;
-  background: 
-    linear-gradient(155deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(255, 255, 255, 0) 100%),
-    var(--surface-2);
+  background: #171822;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  padding: 28px;
+  padding: 26px;
   box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 35px 90px rgba(0, 0, 0, 0.75),
-    0 0 60px rgba(109, 91, 255, 0.15);
-  animation: rise 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 25px 70px rgba(0, 0, 0, 0.75);
+  animation: rise 0.18s ease-out;
 }
 
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.98);
+    transform: translateY(8px) scale(0.99);
   }
   to {
     opacity: 1;
@@ -902,70 +858,62 @@ tr:hover td {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .modalhead h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 19px;
 }
 
 .modalfoot {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 24px;
+  gap: 9px;
+  margin-top: 22px;
 }
 
 /* Callout Notices */
 .notice {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: var(--radius-sm);
   background: rgba(109, 91, 255, 0.10);
-  border: 1px solid rgba(109, 91, 255, 0.25);
+  border: 1px solid rgba(109, 91, 255, 0.22);
   color: var(--accent-2);
-  font-size: 13.5px;
-  margin: 14px 0;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  font-size: 13px;
+  margin: 12px 0;
 }
 
 .notice.warn {
   background: rgba(255, 210, 31, 0.08);
-  border-color: rgba(255, 210, 31, 0.25);
+  border-color: rgba(255, 210, 31, 0.22);
   color: #ffe066;
 }
 
 .notice.alert {
   background: rgba(255, 77, 79, 0.08);
-  border-color: rgba(255, 77, 79, 0.25);
+  border-color: rgba(255, 77, 79, 0.22);
   color: #ff9da0;
 }
 
-/* ==========================================================================
-   9. STUDENT VIEW & HERO CARD (Volumetric Accent Focal Point)
-   ========================================================================== */
+/* 9. STUDENT VIEW & HERO CARD */
 .studenthero {
   position: relative;
   background: 
-    radial-gradient(ellipse at 85% 10%, rgba(109, 91, 255, 0.28) 0%, transparent 55%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0) 100%),
-    var(--surface);
-  border: 1px solid rgba(109, 91, 255, 0.32);
+    radial-gradient(ellipse at 85% 10%, rgba(109, 91, 255, 0.18) 0%, transparent 55%),
+    linear-gradient(145deg, #1b1c28 0%, #111219 100%);
+  border: 1px solid rgba(109, 91, 255, 0.28);
   border-radius: var(--radius-lg);
-  padding: 26px;
-  margin-bottom: 16px;
+  padding: 24px;
+  margin-bottom: 15px;
   box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 25px 70px rgba(0, 0, 0, 0.5),
-    0 0 50px rgba(109, 91, 255, 0.16);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 50px rgba(0, 0, 0, 0.45);
 }
 
 .studenthero h2 {
-  font-size: 28px;
-  margin: 6px 0;
+  font-size: 26px;
+  margin: 5px 0;
   color: #fff;
   letter-spacing: -0.03em;
 }
@@ -973,68 +921,61 @@ tr:hover td {
 .studentstats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin: 16px 0;
+  gap: 10px;
+  margin: 14px 0;
 }
 
 .studentstats .card {
-  padding: 16px;
+  padding: 14px;
   min-height: auto;
 }
 
 .studentstats strong {
-  font-size: 28px;
+  font-size: 26px;
   display: block;
   font-weight: 300;
   font-variant-numeric: tabular-nums;
 }
 
-/* ==========================================================================
-   10. LOGIN & PIN ENTRY
-   ========================================================================== */
+/* 10. LOGIN & PIN ENTRY */
 .login {
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 20px;
   background: 
-    radial-gradient(ellipse at 50% 25%, rgba(109, 91, 255, 0.25) 0%, rgba(42, 31, 143, 0.12) 40%, transparent 70%),
+    radial-gradient(ellipse at 50% 25%, rgba(109, 91, 255, 0.18) 0%, rgba(42, 31, 143, 0.08) 40%, transparent 65%),
     var(--bg-base);
 }
 
 .loginbox {
-  width: min(400px, 100%);
-  background: 
-    linear-gradient(155deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(255, 255, 255, 0) 100%),
-    var(--surface-2);
+  width: min(390px, 100%);
+  background: linear-gradient(155deg, #181924 0%, #101117 100%);
   border: 1px solid var(--border-strong);
-  padding: 36px 32px;
+  padding: 34px 28px;
   border-radius: var(--radius-lg);
   box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 30px 90px rgba(0, 0, 0, 0.75),
-    0 0 60px rgba(109, 91, 255, 0.18);
-  backdrop-filter: blur(32px);
-  -webkit-backdrop-filter: blur(32px);
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 25px 70px rgba(0, 0, 0, 0.70);
 }
 
 .loginlogo {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #7b6aff 0%, #5846f3 100%);
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #7867ff 0%, #5442ed 100%);
   color: #ffffff;
   display: grid;
   place-items: center;
-  font-size: 28px;
-  margin-bottom: 20px;
-  box-shadow: 0 0 35px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  font-size: 26px;
+  margin-bottom: 18px;
+  box-shadow: 0 0 24px var(--accent-glow);
 }
 
 .footerhint {
   font-size: 12px;
   color: var(--text-3);
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .footerhint.error {
@@ -1045,22 +986,20 @@ tr:hover td {
   display: none !important;
 }
 
-/* ==========================================================================
-   11. RESPONSIVE BREAKPOINTS
-   ========================================================================== */
+/* 11. RESPONSIVE BREAKPOINTS */
 @media (max-width: 1050px) {
   .app {
     grid-template-columns: 260px minmax(0, 1fr);
   }
   .sidebar {
     min-width: 260px;
-    padding: 22px 16px;
+    padding: 20px 15px;
   }
   .welcome h2 {
-    font-size: 22px;
+    font-size: 21px;
   }
   main {
-    padding: 0 24px 36px;
+    padding: 0 22px 32px;
   }
 }
 
@@ -1073,13 +1012,13 @@ tr:hover td {
     top: auto;
     height: auto;
     min-width: 0;
-    padding: 14px 14px 10px;
-    gap: 10px;
+    padding: 13px 13px 9px;
+    gap: 9px;
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
   .brand {
-    padding: 0 0 10px;
+    padding: 0 0 9px;
     border-bottom: 1px solid var(--border);
   }
   .welcome, .navgroup .navlabel, .sidebottom {
@@ -1091,68 +1030,68 @@ tr:hover td {
   .sidebar nav {
     display: flex;
     overflow-x: auto;
-    gap: 6px;
-    padding-bottom: 4px;
+    gap: 5px;
+    padding-bottom: 3px;
     scrollbar-width: none;
   }
   .sidebar nav::-webkit-scrollbar {
     display: none;
   }
   .nav {
-    height: 40px;
+    height: 38px;
     white-space: nowrap;
-    padding: 0 12px;
-    font-size: 12.5px;
+    padding: 0 11px;
+    font-size: 12px;
   }
   .nav .ico {
     display: inline;
     width: auto;
-    font-size: 15px;
+    font-size: 14px;
   }
   .sidebar-toggle, .sidebar-open-btn {
     display: none !important;
   }
   main {
-    padding: 0 16px 32px;
+    padding: 0 15px 28px;
   }
   .workspacebar {
-    height: 60px;
-    margin-bottom: 24px;
+    height: 56px;
+    margin-bottom: 20px;
   }
   .workspace-right {
     font-size: 0;
   }
   .workspace-right .avatar {
-    font-size: 12px;
+    font-size: 11px;
   }
   .top h1 {
-    font-size: 26px;
+    font-size: 24px;
   }
 }
 
 @media (max-width: 520px) {
   .grid {
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 9px;
   }
   .studentstats {
     grid-template-columns: 1fr 1fr;
   }
   .card {
-    padding: 16px;
-    min-height: 110px;
+    padding: 14px;
+    min-height: 105px;
   }
   .stat {
-    font-size: 28px;
+    font-size: 26px;
   }
   .panel {
-    padding: 16px;
+    padding: 14px;
   }
   .top {
     display: block;
   }
   .top .actions {
-    margin-top: 14px;
+    margin-top: 12px;
   }
   .formgrid {
     grid-template-columns: 1fr;
