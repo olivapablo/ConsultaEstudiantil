@@ -1797,7 +1797,6 @@ Saludos, Prof. Pablo Oliva González.`;
         label.textContent = isTheo ? 'TEMAS Y CONSIGNAS TEÓRICAS' : 'CONSIGNAS Y PAUTAS DEL TRABAJO';
       }
     }
-    }
 
     async openJobAssignmentsModal(jobId) {
       const [job, students, assignments] = await Promise.all([
