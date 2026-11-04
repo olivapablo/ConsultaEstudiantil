@@ -1162,12 +1162,70 @@
   // 10. EMAIL SERVICE (Mailto preparador)
   // ==========================================
   class EmailService {
-    static prepareMailtoLink({ studentEmail, studentName, jobTitle, driveUrl, teacherName }) {
+    static prepareMailtoLink({ studentEmail, studentName, jobTitle, jobType = 'Práctico', promptText = '', driveUrl = '', teacherName }) {
       if (!studentEmail || !studentEmail.trim()) {
         return { ready: false, error: 'El alumno no tiene correo registrado.' };
       }
+      const isTheoretical = jobType === 'Teórico';
       const subject = `Consigna de recuperación: ${jobTitle} - Educación Física`;
-      const body = `Hola ${studentName},\n\nTe adjunto la consigna de recuperación correspondiente al trabajo práctico "${jobTitle}".\n\nPodés consultar el documento en Google Drive desde el siguiente enlace: ${driveUrl}\n\nAnte cualquier duda podés consultarme durante las clases, recuerda las fechas de entrega.\n\nSaludos, Prof. Pablo Oliva González.`;
+
+      let body = '';
+      if (isTheoretical) {
+        // PARTE TEÓRICA: Se mantiene como trabajamos (archivo en Google Drive con link y QR)
+        body = `Hola ${studentName},
+
+Te adjunto la consigna de recuperación correspondiente al trabajo práctico "${jobTitle}".
+
+Podés consultar el documento en Google Drive desde el siguiente enlace: ${driveUrl}
+
+Ante cualquier duda podés consultarme durante las clases, recuerda las fechas de entrega.
+
+Saludos, Prof. Pablo Oliva González.`;
+      } else {
+        // PARTE PRÁCTICA: Consigna cargada directamente en la página (rutinas / ejercicios)
+        const consigna = promptText ? promptText.trim() : (driveUrl ? `Enlace de consulta: ${driveUrl}` : 'Consultar ejercicios de recuperación con el docente en clase.');
+        body = `Hola ${studentName},
+
+Te adjunto la consigna de recuperación correspondiente al trabajo práctico "${jobTitle}".
+
+Consigna práctica:
+${consigna}
+
+Ante cualquier duda podés consultarme durante las clases, recuerda las fechas de entrega.
+
+Saludos, Prof. Pablo Oliva González.`;
+      }
+
+      return {
+        ready: true,
+        url: `mailto:${encodeURIComponent(studentEmail.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+      };
+    }
+
+    static prepareConsolidatedTheoreticalMail({ studentEmail, studentName, theoreticalJobs, teacherName }) {
+      if (!studentEmail || !studentEmail.trim()) {
+        return { ready: false, error: 'El alumno no tiene correo registrado.' };
+      }
+
+      const subject = `Consignas de recuperación teórica pendientes - Educación Física`;
+      
+      const listado = theoreticalJobs.map(j => {
+        const link = j.driveUrl ? `Enlace Drive: ${j.driveUrl}` : '(Consultar documento con el docente)';
+        return `• ${j.title}:\n${link}`;
+      }).join('\n\n');
+
+      const body = `Hola ${studentName},
+
+Te adjunto las consignas de recuperación correspondientes a los trabajos prácticos teóricos que adeudás en Educación Física:
+
+${listado}
+
+Podés consultar cada documento en Google Drive desde los enlaces indicados.
+
+Ante cualquier duda podés consultarme durante las clases, recuerda las fechas de entrega.
+
+Saludos, Prof. Pablo Oliva González.`;
+
       return {
         ready: true,
         url: `mailto:${encodeURIComponent(studentEmail.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
@@ -1858,25 +1916,25 @@
         </div>
 
         ${!isPractical ? `
-        <!-- TRABAJO TEÓRICO: SECCIÓN DE MATERIAL / ARCHIVO DRIVE SIEMPRE DISPONIBLE -->
+        <!-- TRABAJO TEÓRICO: MATERIAL EN GOOGLE DRIVE (PDF) + QR -->
         <div style="margin-top:16px;border:1px solid rgba(109, 91, 255, 0.35);background:#171825;border-radius:14px;padding:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <label style="color:var(--accent-2);font-size:12px;margin:0">📄 Archivo o Consigna en Google Drive (Trabajo Teórico)</label>
+            <label style="color:var(--accent-2);font-size:12px;margin:0">📄 Archivo o Consigna en Google Drive (Trabajo Teórico PDF)</label>
             <a href="https://drive.google.com/" target="_blank" class="secondary rowbtn" style="text-decoration:none;font-size:11px">Abrir mi Drive ↗</a>
           </div>
           <p class="muted" style="font-size:12px;margin:0 0 10px">
-            Pegá aquí el link de Google Drive (PDF, documento o carpeta de estudio). Quedará vinculado al alumno:
+            Pegá aquí el enlace de Google Drive al archivo PDF del trabajo teórico. Se incluirá en el mail y generará el QR:
           </p>
           <div class="field">
             <input id="eDriveUrl" value="${this.esc(a.driveViewLink || job.driveUrl || '')}" placeholder="https://drive.google.com/file/d/.../view">
           </div>
           <div class="field" style="margin-top:10px">
-            <label>CONSIGNA O PAUTAS ESCRITAS (OPCIONAL)</label>
-            <textarea id="ePracticalPrompt" rows="2" placeholder="Puntos a responder, cuestionario o consignas complementarias...">${this.esc(a.practicalPrompt || '')}</textarea>
+            <label>OBSERVACIONES O PAUTAS ESCRITAS (OPCIONAL)</label>
+            <textarea id="ePracticalPrompt" rows="2" placeholder="Puntos específicos o aclaraciones complementarias...">${this.esc(a.practicalPrompt || '')}</textarea>
           </div>
           <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-            <button type="button" class="secondary rowbtn" onclick="GestorAcademico.app.previewCurrentQR('${this.esc(job.title)}', '${this.esc(student.name)}')">📱 Generar Código QR</button>
-            <button type="button" class="secondary rowbtn" onclick="GestorAcademico.app.sendRecoveryEmail('${a.id}')">✉️ Preparar Correo</button>
+            <button type="button" class="primary rowbtn" onclick="GestorAcademico.app.sendRecoveryEmail('${a.id}')">✉️ Enviar por correo</button>
+            <button type="button" class="secondary rowbtn" onclick="GestorAcademico.app.previewCurrentQR('${this.esc(job.title)}', '${this.esc(student.name)}')">📱 Ver Código QR</button>
           </div>
         </div>
         ` : `
@@ -1921,6 +1979,17 @@
         await this.renderDashboard();
         if (this.currentPage === 'lookup' && this.selectedStudentId) {
           await this.showStudent(this.selectedStudentId);
+        }
+
+        // Si debe la parte teórica (desaprobado), ofrecer enviarle las consignas por mail de inmediato
+        if (job.type === 'Teórico' && status === 'failed') {
+          const sendNow = await AppDialog.confirm(
+            `El alumno ${student.last}, ${student.name} adeuda la parte teórica de "${job.title}".\n\n¿Deseás enviarle las consignas por correo electrónico ahora?`,
+            'Enviar consigna teórica'
+          );
+          if (sendNow) {
+            await this.sendRecoveryEmail(assignmentId);
+          }
         }
       });
     }
@@ -2072,9 +2141,45 @@
         this.db.get('settings', 'teacherProfile')
       ]);
 
-      const driveUrlOrPrompt = a.driveViewLink || job.driveUrl || a.practicalPrompt || '';
-      if (!driveUrlOrPrompt) {
-        return await AppDialog.alert('Este trabajo no tiene un enlace de Google Drive o consigna asignada aún.', 'Material no disponible');
+      let promptText = a.practicalPrompt || job.description || '';
+      let driveUrl = a.driveViewLink || job.driveUrl || '';
+
+      if (job.type === 'Teórico') {
+        // En TEÓRICO se utiliza el enlace a Google Drive (PDF)
+        if (!driveUrl) {
+          const enteredUrl = await AppDialog.prompt(
+            `El trabajo teórico "${job.title}" aún no tiene cargado el enlace de Google Drive.\n\nIngresá el enlace de Google Drive para generar el QR y enviarlo por correo:`,
+            '',
+            'Enlace Google Drive (Teórico)'
+          );
+          if (!enteredUrl || !enteredUrl.trim()) return;
+          driveUrl = enteredUrl.trim();
+          await this.assignments.evaluate(assignmentId, {
+            status: a.status,
+            grade: a.grade,
+            notes: a.notes,
+            driveViewLink: driveUrl,
+            practicalPrompt: a.practicalPrompt
+          });
+        }
+      } else {
+        // En PRÁCTICO se utiliza la consigna cargada dentro de la página
+        if (!promptText) {
+          const enteredPrompt = await AppDialog.prompt(
+            `El trabajo práctico "${job.title}" no tiene consignas redactadas en la página todavía.\n\nEscribí la rutina o consigna física de recuperación:`,
+            '',
+            'Redactar consigna práctica'
+          );
+          if (!enteredPrompt || !enteredPrompt.trim()) return;
+          promptText = enteredPrompt.trim();
+          await this.assignments.evaluate(assignmentId, {
+            status: a.status,
+            grade: a.grade,
+            notes: a.notes,
+            practicalPrompt: promptText,
+            driveViewLink: a.driveViewLink
+          });
+        }
       }
 
       if (!student.email) {
@@ -2092,7 +2197,55 @@
         studentEmail: student.email,
         studentName: `${student.name}`,
         jobTitle: job.title,
-        driveUrl: driveUrlOrPrompt,
+        jobType: job.type,
+        promptText: promptText,
+        driveUrl: driveUrl,
+        teacherName: profile?.teacherName || 'Prof. Pablo Oliva González'
+      });
+
+      if (!res.ready) return await AppDialog.alert(res.error, 'Aviso de correo');
+      EmailService.openClient(res.url);
+    }
+
+    async sendAllPendingTheoreticalEmails(studentId) {
+      const [student, assignments, jobs, profile] = await Promise.all([
+        this.students.getById(studentId),
+        this.assignments.getByStudentId(studentId),
+        this.jobs.getAll(),
+        this.db.get('settings', 'teacherProfile')
+      ]);
+      if (!student) return;
+
+      const jobMap = new Map(jobs.map(j => [j.id, j]));
+      const theoreticalOwed = assignments
+        .map(a => ({ ...a, job: jobMap.get(a.jobId) }))
+        .filter(a => a.job && a.job.type === 'Teórico' && (a.status === 'failed' || a.status === 'pending'));
+
+      if (theoreticalOwed.length === 0) {
+        return await AppDialog.alert('Este alumno no adeuda ningún trabajo práctico teórico.', 'Sin pendientes teóricos');
+      }
+
+      if (!student.email) {
+        const entered = await AppDialog.prompt(
+          `El alumno ${student.last}, ${student.name} no tiene correo registrado.\nIngresá su correo electrónico:`,
+          '',
+          'Enviar consignas teóricas por correo'
+        );
+        if (!entered || !entered.trim()) return;
+        student.email = entered.trim();
+        await this.students.update(student.id, { email: student.email });
+      }
+
+      const theoreticalJobsData = theoreticalOwed.map(a => ({
+        title: a.job.title,
+        promptText: a.practicalPrompt || a.job.description || '',
+        driveUrl: a.driveViewLink || a.job.driveUrl || ''
+      }));
+
+      const res = EmailService.prepareConsolidatedTheoreticalMail({
+        studentEmail: student.email,
+        studentName: `${student.name}`,
+        theoreticalJobs: theoreticalJobsData,
         teacherName: profile?.teacherName || 'Prof. Pablo Oliva González'
       });
 
@@ -2208,6 +2361,23 @@
           <div class="card"><strong style="color:var(--red)">${counts.failed}</strong><small>Desaprobados</small></div>
         </div>
 
+        ${(() => {
+          const owedTheoretical = studentAssignments.filter(a => a.job && a.job.type === 'Teórico' && (a.status === 'failed' || a.status === 'pending'));
+          if (owedTheoretical.length === 0) return '';
+          return `
+            <div style="margin:16px 0;padding:14px 18px;background:rgba(255, 77, 79, 0.12);border:1px solid rgba(255, 77, 79, 0.35);border-radius:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+              <div>
+                <b style="color:var(--red);font-size:14px">⚠️ Debe la parte teórica (${owedTheoretical.length} trabajo${owedTheoretical.length > 1 ? 's' : ''}):</b>
+                <span style="color:#ffffff;font-size:13px;margin-left:6px">${owedTheoretical.map(t => this.esc(t.job.title)).join(', ')}</span>
+                <p class="muted" style="margin:4px 0 0;font-size:12px">Podés enviarle las consignas por correo con un clic para su recuperación.</p>
+              </div>
+              <button type="button" class="primary rowbtn" style="background:#ff4d4f;border-color:#ff4d4f;color:#fff;padding:9px 16px;font-size:12.5px;box-shadow:0 0 15px rgba(255,77,79,0.3)" onclick="GestorAcademico.app.sendAllPendingTheoreticalEmails('${student.id}')">
+                ✉️ Enviar consignas teóricas por mail
+              </button>
+            </div>
+          `;
+        })()}
+
         <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px">
           <h2 style="margin:0">Detalle de trabajos asignados (TP 1 al 8)</h2>
           <button class="secondary rowbtn" onclick="GestorAcademico.app.openAssignJobToStudentModal('${student.id}')">+ Asignar trabajo individual</button>
@@ -2254,10 +2424,14 @@
                     </div>
                     <div>
                       <b style="color:var(--text);font-size:13px">
-                        ${a.status === 'failed' ? '⚠️ Material / Recuperación' : '📱 Acceso con Código QR'}
+                        ${a.job.type === 'Teórico' && (a.status === 'failed' || a.status === 'pending')
+                          ? '⚠️ Recuperación Teórica (Debe el Teórico)'
+                          : (a.status === 'failed' ? '⚠️ Material / Recuperación' : '📱 Acceso con Código QR')}
                       </b>
                       <p class="muted" style="margin:3px 0 0;font-size:11.5px">
-                        Escaneá este código con la cámara del celular para abrir el documento.
+                        ${a.job.type === 'Teórico' && (a.status === 'failed' || a.status === 'pending')
+                          ? 'Material teórico de estudio y consignas. Escaneá con el celular o envialo por correo.'
+                          : 'Escaneá este código con la cámara del celular para abrir el documento.'}
                       </p>
                       ${a.practicalPrompt && a.job.type === 'Práctico' ? `
                         <div style="margin-top:5px;font-size:12px;color:#f0eeff;background:rgba(255,255,255,0.04);padding:6px 10px;border-radius:6px">
@@ -2268,8 +2442,8 @@
                   </div>
 
                   <div>
-                    <button type="button" class="primary rowbtn" style="padding:8px 14px;font-size:12px" onclick="GestorAcademico.app.sendRecoveryEmail('${a.id}')">
-                      ✉️ Enviar por correo
+                    <button type="button" class="primary rowbtn" style="padding:8px 14px;font-size:12px;${a.status === 'failed' ? 'background:var(--red);border-color:var(--red);' : ''}" onclick="GestorAcademico.app.sendRecoveryEmail('${a.id}')">
+                      ${a.job.type === 'Teórico' ? '✉️ Enviar enlace Drive por correo' : '✉️ Enviar consigna práctica por correo'}
                     </button>
                   </div>
                 </div>
