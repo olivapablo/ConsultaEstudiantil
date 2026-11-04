@@ -812,7 +812,7 @@
   // 8. QR SERVICE (Autónomo sin CDNs)
   // ==========================================
   class QRService {
-    static generateDataURL(text, size = 260) {
+    static generateDataURL(text, size = 400) {
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
@@ -823,19 +823,19 @@
 
       const qr = this._createQRCode(text);
       const count = qr.getModuleCount();
-      const padding = 18;
-      const cellSize = (size - padding * 2) / count;
+      const padding = Math.ceil(size * 0.06);
+      const usable = size - padding * 2;
+      const cellSize = usable / count;
 
       ctx.fillStyle = '#10111a';
       for (let r = 0; r < count; r++) {
         for (let c = 0; c < count; c++) {
           if (qr.isDark(r, c)) {
-            ctx.fillRect(
-              Math.round(padding + c * cellSize),
-              Math.round(padding + r * cellSize),
-              Math.ceil(cellSize),
-              Math.ceil(cellSize)
-            );
+            const x = Math.floor(padding + c * cellSize);
+            const y = Math.floor(padding + r * cellSize);
+            const w = Math.ceil(padding + (c + 1) * cellSize) - x;
+            const h = Math.ceil(padding + (r + 1) * cellSize) - y;
+            ctx.fillRect(x, y, w, h);
           }
         }
       }
@@ -843,7 +843,27 @@
     }
 
     static _createQRCode(text) {
-      const typeNumber = text.length > 80 ? 6 : (text.length > 40 ? 4 : 2);
+      // Seleccionar el tipo de QR según longitud del texto (con margen amplio)
+      // Capacidades en modo byte con corrección L
+      const len = new TextEncoder().encode(text).length;
+      let typeNumber;
+      if      (len <= 17)  typeNumber = 1;
+      else if (len <= 32)  typeNumber = 2;
+      else if (len <= 53)  typeNumber = 3;
+      else if (len <= 78)  typeNumber = 4;
+      else if (len <= 106) typeNumber = 5;
+      else if (len <= 134) typeNumber = 6;
+      else if (len <= 154) typeNumber = 7;
+      else if (len <= 192) typeNumber = 8;
+      else if (len <= 230) typeNumber = 9;
+      else if (len <= 271) typeNumber = 10;
+      else if (len <= 321) typeNumber = 11;
+      else if (len <= 367) typeNumber = 12;
+      else if (len <= 425) typeNumber = 13;
+      else if (len <= 458) typeNumber = 14;
+      else if (len <= 520) typeNumber = 15;
+      else                 typeNumber = 16;
+
       const qr = {
         typeNumber,
         modules: null,
@@ -884,7 +904,11 @@
         createData() {
           const buffer = [4];
           const bytes = new TextEncoder().encode(this.data);
-          buffer.push(bytes.length);
+          // Para tipos 10+ necesitamos 2 bytes para el conteo de caracteres
+          if (this.typeNumber >= 10) {
+            buffer.push((bytes.length >> 8) & 0xFF);
+          }
+          buffer.push(bytes.length & 0xFF);
           for (let i = 0; i < bytes.length; i++) buffer.push(bytes[i]);
           return buffer;
         },
@@ -1051,6 +1075,9 @@
 
       this.currentPage = 'dashboard';
       this.selectedStudentId = null;
+      // Cache temporal de QR data URLs para referencias seguras desde onclick HTML
+      this._qrCache = new Map();
+      this._qrCacheCounter = 0;
     }
 
     async init() {
@@ -1876,6 +1903,45 @@
       if (saveBtn) saveBtn.style.display = 'none';
     }
 
+    openQRLightboxById(cacheId) {
+      const entry = this._qrCache.get(cacheId);
+      if (!entry) return;
+      this.openQRLightbox(entry.dataUrl, entry.title);
+    }
+
+    openQRLightbox(dataUrl, title) {
+      // Remover lightbox anterior si existe
+      const prev = document.getElementById('qrLightboxOverlay');
+      if (prev) prev.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'qrLightboxOverlay';
+      overlay.className = 'qr-lightbox';
+      overlay.innerHTML = `
+        <div class="qr-lightbox-inner">
+          <button class="qr-lightbox-close" title="Cerrar">✕</button>
+          <div class="qr-lightbox-title">${this.esc(title)}</div>
+          <img src="${dataUrl}" alt="Código QR ampliado">
+          <p class="qr-lightbox-hint">📱 Escaneá con la cámara del celular</p>
+        </div>
+      `;
+
+      // Cerrar al hacer click en el fondo o en el botón X
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.classList.contains('qr-lightbox-close')) {
+          overlay.remove();
+        }
+      });
+
+      // Cerrar con Escape
+      const escHandler = (e) => {
+        if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); }
+      };
+      document.addEventListener('keydown', escHandler);
+
+      document.body.appendChild(overlay);
+    }
+
     async sendRecoveryEmail(assignmentId) {
       const a = await this.assignments.getById(assignmentId);
       if (!a) return;
@@ -1965,6 +2031,9 @@
 
     async showStudent(id) {
       this.selectedStudentId = id;
+      // Limpiar cache de QR para liberar memoria de la vista anterior
+      this._qrCache.clear();
+      this._qrCacheCounter = 0;
       const [student, assignments, jobs] = await Promise.all([
         this.students.getById(id),
         this.assignments.getByStudentId(id),
@@ -2025,7 +2094,14 @@
           const activeDriveUrl = a.driveViewLink || a.job.driveUrl || '';
           const qrContent = activeDriveUrl || a.practicalPrompt || '';
           const hasQr = !!qrContent;
-          const qrDataUrl = hasQr ? QRService.generateDataURL(qrContent, 180) : null;
+          // Generar QR a alta resolución y guardarlo en cache con ID corto
+          let qrDataUrl = null, qrCacheId = null;
+          if (hasQr) {
+            qrDataUrl = QRService.generateDataURL(qrContent, 400);
+            qrCacheId = 'qr_' + (++this._qrCacheCounter);
+            this._qrCache.set(qrCacheId, { dataUrl: qrDataUrl, title: a.job.title });
+          }
+          const qrJobTitle = this.esc(a.job.title);
           return `
             <div class="card" style="margin:10px 0;padding:16px">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -2049,8 +2125,8 @@
               ${hasQr ? `
                 <div style="margin-top:14px;padding:12px 14px;background:#151622;border:1px solid rgba(109, 91, 255, 0.28);border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
                   <div style="display:flex;align-items:center;gap:14px">
-                    <div style="background:#ffffff;padding:5px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,0.45);flex-shrink:0">
-                      <img src="${qrDataUrl}" alt="Código QR" style="display:block;width:90px;height:90px;border-radius:4px">
+                    <div style="background:#ffffff;padding:5px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,0.45);flex-shrink:0;cursor:pointer" title="Tocá para ampliar el QR" onclick="GestorAcademico.app.openQRLightboxById('${qrCacheId}')">
+                      <img src="${qrDataUrl}" alt="Código QR" style="display:block;width:90px;height:90px;border-radius:4px;image-rendering:pixelated;pointer-events:none">
                     </div>
                     <div>
                       <b style="color:var(--text);font-size:13px">
