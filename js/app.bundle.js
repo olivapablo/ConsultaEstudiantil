@@ -1439,6 +1439,38 @@ Educación Física`;
       return { ready: true, url: gmailUrl, subject, body, to: studentEmail.trim() };
     }
 
+    static prepareConsolidatedPracticalMail({ studentEmail, studentName, practicalJobs, teacherName, teacherEmail = '' }) {
+      if (!studentEmail || !studentEmail.trim()) {
+        return { ready: false, error: 'El alumno no tiene correo registrado.' };
+      }
+
+      const subject = `Consignas de trabajos prácticos pendientes — Educación Física`;
+
+      const listado = practicalJobs.map((j, i) => {
+        const desc = j.promptText ? j.promptText.trim() : 'Consultar ejercicios y rutina física con el docente en clase.';
+        return `${i + 1}. ${j.title}:\n${desc}${j.driveUrl ? `\nMaterial de apoyo: ${j.driveUrl}` : ''}`;
+      }).join('\n\n───\n\n');
+
+      const body = `Hola ${studentName},
+
+Te envío las consignas de los trabajos prácticos que tenés pendientes en Educación Física:
+
+─── CONSIGNAS PRÁCTICAS ────────────────────────
+${listado}
+─────────────────────────────────────────────────
+
+Recordá realizar las rutinas y ejercicios indicados para su evaluación.
+
+Ante cualquier duda podés consultarme durante las clases. Recordá las fechas de entrega.
+
+Saludos,
+${teacherName || 'Prof. Pablo Oliva González'}
+Educación Física`;
+
+      const gmailUrl = this._buildGmailUrl(studentEmail.trim(), subject, body, teacherEmail);
+      return { ready: true, url: gmailUrl, subject, body, to: studentEmail.trim() };
+    }
+
     static prepareConsolidatedTheoreticalMail({ studentEmail, studentName, theoreticalJobs, teacherName, teacherEmail = '' }) {
       if (!studentEmail || !studentEmail.trim()) {
         return { ready: false, error: 'El alumno no tiene correo registrado.' };
@@ -2534,6 +2566,55 @@ Educación Física`;
       EmailService.openClient(res.url);
     }
 
+    async sendAllPendingPracticalEmails(studentId) {
+      const [student, assignments, jobs, profile] = await Promise.all([
+        this.students.getById(studentId),
+        this.assignments.getByStudentId(studentId),
+        this.jobs.getAll(),
+        this.db.get('settings', 'teacherProfile')
+      ]);
+      if (!student) return;
+
+      const jobMap = new Map(jobs.map(j => [j.id, j]));
+      const practicalOwed = assignments
+        .map(a => ({ ...a, job: jobMap.get(a.jobId) }))
+        .filter(a => a.job && a.job.type === 'Práctico' && (a.status === 'failed' || a.status === 'pending'));
+
+      if (practicalOwed.length === 0) {
+        return await AppDialog.alert('Este alumno no adeuda ningún trabajo práctico.', 'Sin pendientes prácticos');
+      }
+
+      if (!student.email) {
+        const entered = await AppDialog.prompt(
+          `El alumno ${student.last}, ${student.name} no tiene correo registrado.\nIngresá su correo electrónico:`,
+          '',
+          'Enviar consignas prácticas por correo'
+        );
+        if (!entered || !entered.trim()) return;
+        student.email = entered.trim();
+        await this.students.update(student.id, { email: student.email });
+      }
+
+      const practicalJobsData = practicalOwed.map(a => ({
+        title: a.job.title,
+        promptText: a.practicalPrompt || a.job.description || '',
+        driveUrl: a.driveViewLink || a.job.driveUrl || ''
+      }));
+
+      const teacherEmail = profile?.teacherEmail || 'prof.pabloliva@gmail.com';
+
+      const res = EmailService.prepareConsolidatedPracticalMail({
+        studentEmail: student.email,
+        studentName: `${student.name}`,
+        practicalJobs: practicalJobsData,
+        teacherName: profile?.teacherName || 'Prof. Pablo Oliva González',
+        teacherEmail: teacherEmail
+      });
+
+      if (!res.ready) return await AppDialog.alert(res.error, 'Aviso de correo');
+      EmailService.openClient(res.url);
+    }
+
     // --- HISTORIAL ---
     async renderHistory() {
       const q = document.getElementById('historySearch')?.value || '';
@@ -2644,19 +2725,40 @@ Educación Física`;
 
         ${(() => {
           const owedTheoretical = studentAssignments.filter(a => a.job && a.job.type === 'Teórico' && (a.status === 'failed' || a.status === 'pending'));
-          if (owedTheoretical.length === 0) return '';
-          return `
-            <div style="margin:16px 0;padding:14px 18px;background:rgba(255, 77, 79, 0.12);border:1px solid rgba(255, 77, 79, 0.35);border-radius:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-              <div>
-                <b style="color:var(--red);font-size:14px">⚠️ Debe la parte teórica (${owedTheoretical.length} trabajo${owedTheoretical.length > 1 ? 's' : ''}):</b>
-                <span style="color:#ffffff;font-size:13px;margin-left:6px">${owedTheoretical.map(t => this.esc(t.job.title)).join(', ')}</span>
-                <p class="muted" style="margin:4px 0 0;font-size:12px">Podés enviarle las consignas por correo con un clic para su recuperación.</p>
+          const owedPractical = studentAssignments.filter(a => a.job && a.job.type === 'Práctico' && (a.status === 'failed' || a.status === 'pending'));
+
+          let html = '';
+          if (owedTheoretical.length > 0) {
+            html += `
+              <div style="margin:16px 0 10px;padding:14px 18px;background:rgba(255, 77, 79, 0.12);border:1px solid rgba(255, 77, 79, 0.35);border-radius:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                <div>
+                  <b style="color:var(--red);font-size:14px">⚠️ Debe la parte teórica (${owedTheoretical.length} trabajo${owedTheoretical.length > 1 ? 's' : ''}):</b>
+                  <span style="color:#ffffff;font-size:13px;margin-left:6px">${owedTheoretical.map(t => this.esc(t.job.title)).join(', ')}</span>
+                  <p class="muted" style="margin:4px 0 0;font-size:12px">Enlace PDF en Google Drive + QR. Podés enviarle las consignas por correo con un clic.</p>
+                </div>
+                <button type="button" class="primary rowbtn" style="background:#ff4d4f;border-color:#ff4d4f;color:#fff;padding:9px 16px;font-size:12.5px;box-shadow:0 0 15px rgba(255,77,79,0.3)" onclick="GestorAcademico.app.sendAllPendingTheoreticalEmails('${student.id}')">
+                  ✉️ Enviar consignas teóricas por mail
+                </button>
               </div>
-              <button type="button" class="primary rowbtn" style="background:#ff4d4f;border-color:#ff4d4f;color:#fff;padding:9px 16px;font-size:12.5px;box-shadow:0 0 15px rgba(255,77,79,0.3)" onclick="GestorAcademico.app.sendAllPendingTheoreticalEmails('${student.id}')">
-                ✉️ Enviar consignas teóricas por mail
-              </button>
-            </div>
-          `;
+            `;
+          }
+
+          if (owedPractical.length > 0) {
+            html += `
+              <div style="margin:10px 0 16px;padding:14px 18px;background:rgba(255, 210, 31, 0.10);border:1px solid rgba(255, 210, 31, 0.35);border-radius:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                <div>
+                  <b style="color:var(--amber);font-size:14px">⚡ Adeuda trabajos prácticos (${owedPractical.length} trabajo${owedPractical.length > 1 ? 's' : ''}):</b>
+                  <span style="color:#ffffff;font-size:13px;margin-left:6px">${owedPractical.map(t => this.esc(t.job.title)).join(', ')}</span>
+                  <p class="muted" style="margin:4px 0 0;font-size:12px">Consignas físicas/ejercicios cargadas en la página. Podés enviarle el detalle por correo con un clic.</p>
+                </div>
+                <button type="button" class="primary rowbtn" style="background:var(--accent);border-color:var(--accent);color:#fff;padding:9px 16px;font-size:12.5px;box-shadow:0 0 15px var(--accent-glow)" onclick="GestorAcademico.app.sendAllPendingPracticalEmails('${student.id}')">
+                  ✉️ Enviar consignas prácticas por mail
+                </button>
+              </div>
+            `;
+          }
+
+          return html;
         })()}
 
         <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px">
@@ -2737,6 +2839,9 @@ Educación Física`;
 
               <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
                 <button class="secondary rowbtn" onclick="GestorAcademico.app.openEvaluationModal('${a.id}')">Calificar / Consigna</button>
+                <button type="button" class="secondary rowbtn" onclick="GestorAcademico.app.sendRecoveryEmail('${a.id}')">
+                  ${a.job.type === 'Teórico' ? '✉️ Enviar enlace Drive por correo' : '✉️ Enviar consigna por correo'}
+                </button>
                 ${a.status === 'pending' ? `<button class="danger rowbtn" onclick="GestorAcademico.app.removeAssignmentFromStudent('${a.id}', '${student.id}')">Desasignar</button>` : ''}
               </div>
             </div>
