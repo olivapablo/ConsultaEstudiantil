@@ -809,133 +809,81 @@
   }
 
   // ==========================================
-  // 8. QR SERVICE (Autónomo sin CDNs)
+  // 8. QR SERVICE (usa qrcode-generator v1.4.4)
   // ==========================================
   class QRService {
+    /**
+     * Genera un QR code real (con Reed-Solomon) como data URL PNG.
+     * Depende de la librería qrcode-generator cargada en qrcode.min.js
+     * @param {string} text  - texto/URL a codificar
+     * @param {number} size  - tamaño del canvas en px (por defecto 400)
+     */
     static generateDataURL(text, size = 400) {
+      try {
+        // Usar la librería qrcode-generator si está disponible
+        if (typeof window.qrcode === 'function') {
+          return this._generateWithLib(text, size);
+        }
+      } catch (e) {
+        console.warn('qrcode-generator falló, usando fallback:', e);
+      }
+      // Fallback: SVG simple con mensaje de error legible
+      return this._fallbackDataURL(size);
+    }
+
+    static _generateWithLib(text, size) {
+      // typeNumber 0 = automático, corrección M para buen balance
+      const qr = window.qrcode(0, 'M');
+      qr.addData(text);
+      qr.make();
+
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');
 
+      // Fondo blanco
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, size, size);
 
-      const qr = this._createQRCode(text);
       const count = qr.getModuleCount();
-      const padding = Math.ceil(size * 0.06);
+      const padding = Math.round(size * 0.055);
       const usable = size - padding * 2;
-      const cellSize = usable / count;
+      const cell = usable / count;
 
-      ctx.fillStyle = '#10111a';
+      ctx.fillStyle = '#000000';
       for (let r = 0; r < count; r++) {
         for (let c = 0; c < count; c++) {
           if (qr.isDark(r, c)) {
-            const x = Math.floor(padding + c * cellSize);
-            const y = Math.floor(padding + r * cellSize);
-            const w = Math.ceil(padding + (c + 1) * cellSize) - x;
-            const h = Math.ceil(padding + (r + 1) * cellSize) - y;
+            // Coordenadas redondeadas para bordes nítidos
+            const x = Math.round(padding + c * cell);
+            const y = Math.round(padding + r * cell);
+            const w = Math.round(padding + (c + 1) * cell) - x;
+            const h = Math.round(padding + (r + 1) * cell) - y;
             ctx.fillRect(x, y, w, h);
           }
         }
       }
+
       return canvas.toDataURL('image/png');
     }
 
-    static _createQRCode(text) {
-      // Seleccionar el tipo de QR según longitud del texto (con margen amplio)
-      // Capacidades en modo byte con corrección L
-      const len = new TextEncoder().encode(text).length;
-      let typeNumber;
-      if      (len <= 17)  typeNumber = 1;
-      else if (len <= 32)  typeNumber = 2;
-      else if (len <= 53)  typeNumber = 3;
-      else if (len <= 78)  typeNumber = 4;
-      else if (len <= 106) typeNumber = 5;
-      else if (len <= 134) typeNumber = 6;
-      else if (len <= 154) typeNumber = 7;
-      else if (len <= 192) typeNumber = 8;
-      else if (len <= 230) typeNumber = 9;
-      else if (len <= 271) typeNumber = 10;
-      else if (len <= 321) typeNumber = 11;
-      else if (len <= 367) typeNumber = 12;
-      else if (len <= 425) typeNumber = 13;
-      else if (len <= 458) typeNumber = 14;
-      else if (len <= 520) typeNumber = 15;
-      else                 typeNumber = 16;
-
-      const qr = {
-        typeNumber,
-        modules: null,
-        moduleCount: 0,
-        addData(data) { this.data = data; },
-        isDark(row, col) { return this.modules[row][col]; },
-        getModuleCount() { return this.moduleCount; },
-        make() {
-          this.moduleCount = this.typeNumber * 4 + 17;
-          this.modules = new Array(this.moduleCount);
-          for (let r = 0; r < this.moduleCount; r++) this.modules[r] = new Array(this.moduleCount).fill(null);
-          this.setupPositionProbe(0, 0);
-          this.setupPositionProbe(this.moduleCount - 7, 0);
-          this.setupPositionProbe(0, this.moduleCount - 7);
-          this.setupTiming();
-          this.mapData(this.createData());
-        },
-        setupPositionProbe(row, col) {
-          for (let r = -1; r <= 7; r++) {
-            if (row + r < 0 || this.moduleCount <= row + r) continue;
-            for (let c = -1; c <= 7; c++) {
-              if (col + c < 0 || this.moduleCount <= col + c) continue;
-              const isDark = (0 <= r && r <= 6 && (c === 0 || c === 6)) ||
-                             (0 <= c && c <= 6 && (r === 0 || r === 6)) ||
-                             (2 <= r && r <= 4 && 2 <= c && c <= 4);
-              this.modules[row + r][col + c] = isDark;
-            }
-          }
-        },
-        setupTiming() {
-          for (let r = 8; r < this.moduleCount - 8; r++) {
-            if (this.modules[r][6] === null) this.modules[r][6] = (r % 2 === 0);
-          }
-          for (let c = 8; c < this.moduleCount - 8; c++) {
-            if (this.modules[6][c] === null) this.modules[6][c] = (c % 2 === 0);
-          }
-        },
-        createData() {
-          const buffer = [4];
-          const bytes = new TextEncoder().encode(this.data);
-          // Para tipos 10+ necesitamos 2 bytes para el conteo de caracteres
-          if (this.typeNumber >= 10) {
-            buffer.push((bytes.length >> 8) & 0xFF);
-          }
-          buffer.push(bytes.length & 0xFF);
-          for (let i = 0; i < bytes.length; i++) buffer.push(bytes[i]);
-          return buffer;
-        },
-        mapData(data) {
-          let inc = -1, row = this.moduleCount - 1, bitIndex = 7, byteIndex = 0;
-          for (let col = this.moduleCount - 1; col > 0; col -= 2) {
-            if (col === 6) col--;
-            while (true) {
-              for (let c = 0; c < 2; c++) {
-                if (this.modules[row][col - c] === null) {
-                  let dark = false;
-                  if (byteIndex < data.length) dark = (((data[byteIndex] >>> bitIndex) & 1) === 1);
-                  const mask = ((row + (col - c)) % 2 === 0);
-                  this.modules[row][col - c] = mask ? !dark : dark;
-                  bitIndex--;
-                  if (bitIndex === -1) { byteIndex++; bitIndex = 7; }
-                }
-              }
-              row += inc;
-              if (row < 0 || this.moduleCount <= row) { row -= inc; inc = -inc; break; }
-            }
-          }
-        }
-      };
-      qr.addData(text);
-      qr.make();
-      return qr;
+    static _fallbackDataURL(size) {
+      // Canvas con texto de error si la librería no cargó
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#cc0000';
+      ctx.font = `bold ${Math.round(size * 0.07)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('QR no disponible', size / 2, size / 2);
+      ctx.font = `${Math.round(size * 0.055)}px sans-serif`;
+      ctx.fillStyle = '#555';
+      ctx.fillText('(librería no cargó)', size / 2, size / 2 + size * 0.1);
+      return canvas.toDataURL('image/png');
     }
   }
 
