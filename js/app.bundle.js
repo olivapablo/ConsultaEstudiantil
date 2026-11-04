@@ -1694,37 +1694,58 @@ Saludos, Prof. Pablo Oliva González.`;
       const isOdd = nextNum % 2 !== 0;
       const defaultType = isOdd ? 'Práctico' : 'Teórico';
       const defaultTitle = id ? j.title : `TP ${nextNum} - ${defaultType}`;
-      const title = id ? 'Editar trabajo' : 'Nuevo trabajo práctico / teórico';
+      const title = id ? 'Editar trabajo' : 'Nuevo trabajo';
 
+      const currentType = j.type || defaultType;
       const bodyHtml = `
-        <div class="notice" style="margin-bottom:14px;font-size:12px;line-height:1.5">
-          💡 <b>Criterio de Cátedra:</b> Las notas impares (TP 1, TP 3, TP 5...) corresponden a la <b>parte práctica</b>, y las notas pares (TP 2, TP 4, TP 6...) a la <b>parte teórica</b>. Se aprueba con <b>7 o más</b>.
-        </div>
-        <div class="formgrid">
-          <div class="field full"><label>TÍTULO DEL TRABAJO</label><input id="jTitle" value="${this.esc(defaultTitle || '')}" placeholder="Ej. TP 1 - Vóley"></div>
-          <div class="field full"><label>DESCRIPCIÓN</label><textarea id="jDesc" rows="2" placeholder="Pautas, material de lectura o consignas...">${this.esc(j.description || '')}</textarea></div>
-          <div class="field"><label>TIPO DE TRABAJO</label>
-            <select id="jType">
-              <option value="Práctico" ${(j.type || defaultType) === 'Práctico' ? 'selected' : ''}>Práctico (Nota impar)</option>
-              <option value="Teórico" ${(j.type || defaultType) === 'Teórico' ? 'selected' : ''}>Teórico (Nota par)</option>
+        <div class="formgrid" style="gap:15px">
+          <div class="field full">
+            <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span>TÍTULO DEL TRABAJO</span>
+              <span class="muted" style="font-size:11px;text-transform:none">Ej: TP 3 - Vóley</span>
+            </label>
+            <input id="jTitle" value="${this.esc(defaultTitle || '')}" placeholder="Nombre del trabajo">
+          </div>
+
+          <div class="field">
+            <label>TIPO DE TRABAJO</label>
+            <select id="jType" onchange="GestorAcademico.app.onJobTypeChange(this.value)">
+              <option value="Práctico" ${currentType === 'Práctico' ? 'selected' : ''}>Práctico</option>
+              <option value="Teórico" ${currentType === 'Teórico' ? 'selected' : ''}>Teórico</option>
             </select>
           </div>
-          <div class="field"><label>FECHA LÍMITE</label><input id="jDue" type="date" value="${j.dueDate || ''}"></div>
+
+          <div class="field">
+            <label>FECHA LÍMITE</label>
+            <input id="jDue" type="date" value="${j.dueDate || ''}">
+          </div>
+
+          <div class="field full">
+            <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span id="descFieldLabel">CONSIGNAS Y DESCRIPCIÓN DEL TRABAJO</span>
+              <span class="muted" style="font-size:11px;text-transform:none">Visible para el alumno</span>
+            </label>
+            <textarea id="jDesc" rows="5" style="min-height:120px;line-height:1.55;resize:vertical;" placeholder="Escribí aquí las consignas, ejercicios a evaluar o temas de estudio...">${this.esc(j.description || '')}</textarea>
+          </div>
           
-          <div class="field full" style="border:1px solid rgba(109, 91, 255, 0.3);background:#171825;border-radius:12px;padding:14px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-              <label style="color:var(--accent-2);font-size:11px;margin:0">📄 ENLACE DE GOOGLE DRIVE (MATERIAL O CONSIGNA TEÓRICA)</label>
-              <a href="https://drive.google.com/" target="_blank" class="secondary rowbtn" style="text-decoration:none;font-size:11px">Abrir mi Drive ↗</a>
+          <div class="field full" id="driveBox" style="border:1px solid rgba(109, 91, 255, 0.32);background:#141522;border-radius:14px;padding:15px;margin-top:2px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap">
+              <label id="driveBoxTitle" style="color:var(--accent-2);font-size:11.5px;font-weight:700;margin:0">
+                📄 ARCHIVO O DOCUMENTO EN GOOGLE DRIVE
+              </label>
+              <a href="https://drive.google.com/" target="_blank" class="secondary rowbtn" style="text-decoration:none;font-size:11px;padding:4px 11px">Abrir mi Drive ↗</a>
             </div>
-            <input id="jDriveUrl" value="${this.esc(j.driveUrl || '')}" placeholder="https://drive.google.com/file/d/... o enlace a carpeta compartida">
-            <small class="muted" style="display:block;margin-top:6px;font-size:11.5px">
-              Ideal para trabajos <b>Teóricos</b> (PDF, cuestionario, apuntes). Los alumnos podrán consultarlo directamente o escanear el QR desde su ficha individual.
+            <input id="jDriveUrl" value="${this.esc(j.driveUrl || '')}" placeholder="https://drive.google.com/file/d/... o enlace a carpeta">
+            <small class="muted" id="driveBoxHint" style="display:block;margin-top:7px;font-size:11.5px;line-height:1.45">
+              ${currentType === 'Teórico' 
+                ? 'Para trabajos <b>Teóricos</b>: este enlace genera el Código QR para escanear en clase y se envía por mail en la recuperación.' 
+                : 'Opcional para trabajos <b>Prácticos</b> (videos demostrativos, reglamentos o material extra).'}
             </small>
           </div>
 
           ${!id ? `
-          <div class="field full">
-            <label>ASIGNACIÓN INICIAL</label>
+          <div class="field full" style="margin-top:2px">
+            <label>ASIGNACIÓN INICIAL A ALUMNOS</label>
             <select id="jAssign">
               <option value="all">Asignar a todos los alumnos activos</option>
               <option value="custom">Elegir alumnos / Excluir manualmente</option>
@@ -1761,6 +1782,21 @@ Saludos, Prof. Pablo Oliva González.`;
         await this.renderJobs();
         await this.renderDashboard();
       });
+    }
+
+    onJobTypeChange(val) {
+      const isTheo = val === 'Teórico';
+      const hint = document.getElementById('driveBoxHint');
+      const label = document.getElementById('descFieldLabel');
+      if (hint) {
+        hint.innerHTML = isTheo
+          ? 'Para trabajos <b>Teóricos</b>: este enlace genera el Código QR para escanear en clase y se envía por mail en la recuperación.'
+          : 'Opcional para trabajos <b>Prácticos</b> (videos demostrativos, reglamentos o material extra).';
+      }
+      if (label) {
+        label.textContent = isTheo ? 'TEMAS Y CONSIGNAS TEÓRICAS' : 'CONSIGNAS Y PAUTAS DEL TRABAJO';
+      }
+    }
     }
 
     async openJobAssignmentsModal(jobId) {

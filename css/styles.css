@@ -139,6 +139,22 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Custom Thin Dark Glass Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 10, 16, 0.4);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(109, 91, 255, 0.32);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(109, 91, 255, 0.65);
+}
+
 button, input, select, textarea {
   font-family: inherit;
 }
