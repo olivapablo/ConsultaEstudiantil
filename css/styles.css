@@ -827,21 +827,15 @@ tr[onclick]:hover b {
   color: var(--accent-2);
 }
 
-/* Descripción truncada a 4 líneas en tabla de trabajos */
+/* Descripción truncada fija a 4 líneas en tabla de trabajos (sin despliegues molestos) */
 #jobsBody td:first-child small.muted {
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
   line-height: 1.5;
   max-height: calc(1.5em * 4);
-}
-
-/* Expandir al pasar el mouse para leer más */
-#jobsBody tr:hover td:first-child small.muted {
-  -webkit-line-clamp: unset;
-  max-height: none;
-  transition: max-height 0.25s ease;
 }
 
 /* Badges & Status Pills */
