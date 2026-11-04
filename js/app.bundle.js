@@ -1383,15 +1383,13 @@
   class EmailService {
     /**
      * Construye la URL de Gmail Compose forzando la cuenta del docente.
-     * Formato: https://mail.google.com/mail/u/{teacherEmail}/?view=cm&fs=1&tf=1&to=...
-     * Esto hace que Gmail abra directamente con la cuenta correcta aunque haya multicuentas.
+     * En Google Chrome / Google Accounts:
+     * - authuser=prof.pabloliva@gmail.com selecciona de forma obligatoria esa cuenta
+     * - u/prof.pabloliva@gmail.com asegura el ruteo de sesión adecuado
      */
     static _buildGmailUrl(to, subject, body, teacherEmail = '') {
-      // Si hay email docente, usarlo para forzar la cuenta. Si no, usar la genérica.
-      const accountPath = teacherEmail.trim()
-        ? `u/${encodeURIComponent(teacherEmail.trim())}/`
-        : '';
-      const base = `https://mail.google.com/mail/${accountPath}?view=cm&fs=1&tf=1`;
+      const email = (teacherEmail || 'prof.pabloliva@gmail.com').trim();
+      const base = `https://mail.google.com/mail/u/${encodeURIComponent(email)}/?view=cm&fs=1&tf=1&authuser=${encodeURIComponent(email)}`;
       return `${base}&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     }
 
